@@ -83,7 +83,7 @@ agent.register_context_provider("available_intents", AvailableIntentsProvider("A
 #########################
 # HOME ASSISTANT METHODS #
 #########################
-def invoke_intent(intent_name: str) -> Optional[str]:
+def invoke_intent(intent_name: str) -> dict:
     """
     Call Home Assistant's intent API with the given intent.
     """
@@ -130,7 +130,7 @@ def get_intent_name(user_query: str) -> Optional[str]:
 
     return result["intent_name"].value
 
-def run_home_assistant_agent(user_query: str) -> Optional[str]:
+def run_home_assistant_agent(user_query: str) -> Optional[dict]:
     """
     Run the Home Assistant Agent to get the intent name.
     """

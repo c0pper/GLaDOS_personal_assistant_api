@@ -138,3 +138,135 @@
 2026-03-15 11:51:41 | INFO | Intent invoked successfully: {'speech': {'plain': {'speech': 'Turning on the mood lights.', 'extra_data': None}}, 'card': {}, 'language': 'en', 'response_type': 'action_done', 'data': {'targets': [], 'success': [], 'failed': []}}
 2026-03-15 11:51:53 | INFO | Running GLaDOS Responder Agent with user input: mood lights on and tool result: Turning on the mood lights.
 2026-03-15 11:51:53 | INFO | Cache miss
+2026-03-15 18:56:01 | INFO | User query: 'what are my pending tasks?'
+2026-03-15 18:56:01 | INFO | Cache miss
+2026-03-15 18:56:01 | INFO | Processing user input: what are my pending tasks?
+2026-03-15 18:56:03 | INFO | Action: get_tasks
+2026-03-15 18:56:03 | ERROR | Failed to retrieve tasks: 400 - {"code":2004,"message":"Invalid model provided: Bad Request"}
+
+2026-03-15 18:56:03 | ERROR | Failed to retrieve tasks.
+2026-03-15 18:56:03 | INFO | Running GLaDOS Responder Agent with user input: what are my pending tasks? and tool result: {"action":"get_tasks","project_id":null,"title":null,"description":null,"due_date":null}
+2026-03-15 18:56:03 | INFO | Cache miss
+2026-03-15 19:04:02 | INFO | User query: 'what are my pending tasks?'
+2026-03-15 19:04:02 | INFO | Cache hit
+2026-03-15 19:04:02 | INFO | Processing user input: what are my pending tasks?
+2026-03-15 19:04:04 | INFO | Action: get_tasks
+2026-03-15 19:04:04 | INFO | Retrieved tasks: Pending Tasks: 
+
+Aggiungere documenti nuovi ad una base dati gia presente, oltre che creare nuove basi dati - Aggiungere documenti nuovi ad una base dati gia presente, oltre che creare nuove basi dati
+Aggiungere risultati del crawler a una base dati gia presente - Per far questo abbiamo stabilito che se il sistema non trova risposta nella base dati selezionata, va prima nella cartella del crawler. Se trova il risultato lo può indicizzare nella sua base dati come fa con storm. Se nemmeno nella cartella del crawler ha trovato nulla, allora va su storm
+rhasspy wake word setup - 
+translate internally query to english if not in english before using it to retrieve passages - 
+aggiungere flag divulgativo netutro dettagliato (per adesso flag dettaglio si/no) - <p></p>
+istanze saroglia -> integrare osservazioni nel prompt e aumentare il modello - 
+temperatura piu alta per una domanda (colore rosso) - <p></p>
+Sfondo bianco - 
+Miglioramento Qualità warning - <ol type="1"><li><p>Intervenire sulle cose segnalate nella&nbsp; mail di venerdì 31/10/2025 17:03 con relativo report e in generale su:</p><ol type="a"><li><p>Modifica elenco di condizioni (aggiunta di patologie/condizioni; aggiunta di uso concomitante; reazioni in corso diventa reazioni; cancellare genere, storia pregressa e parametri in corso)</p></li><li><p>Miglioramento precision e recall intervenendo su:</p></li></ol></li></ol><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Evitare effetto kws</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ii.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Il passaggio giusto, che c’è sempre, deve diventare sentence</p>
+integrare pubmed - <p>scheda add pubmed kb (regex or NL)</p>
+Warning text deve rispondere a perchè assumere questo farmaco è un problema? - 
+cliccare sul warning setta sia il pdf di medicina che paziente nel viewer - 
+integrare nuova versione master sensigrafo - 
+arrivare a un buon punto in inglese - 
+provare con russo - 
+segnalare problemi - 
+2026-03-15 19:04:04 | INFO | Running GLaDOS Responder Agent with user input: what are my pending tasks? and tool result: Pending Tasks: 
+
+Aggiungere documenti nuovi ad una base dati gia presente, oltre che creare nuove basi dati - Aggiungere documenti nuovi ad una base dati gia presente, oltre che creare nuove basi dati
+Aggiungere risultati del crawler a una base dati gia presente - Per far questo abbiamo stabilito che se il sistema non trova risposta nella base dati selezionata, va prima nella cartella del crawler. Se trova il risultato lo può indicizzare nella sua base dati come fa con storm. Se nemmeno nella cartella del crawler ha trovato nulla, allora va su storm
+rhasspy wake word setup - 
+translate internally query to english if not in english before using it to retrieve passages - 
+aggiungere flag divulgativo netutro dettagliato (per adesso flag dettaglio si/no) - <p></p>
+istanze saroglia -> integrare osservazioni nel prompt e aumentare il modello - 
+temperatura piu alta per una domanda (colore rosso) - <p></p>
+Sfondo bianco - 
+Miglioramento Qualità warning - <ol type="1"><li><p>Intervenire sulle cose segnalate nella&nbsp; mail di venerdì 31/10/2025 17:03 con relativo report e in generale su:</p><ol type="a"><li><p>Modifica elenco di condizioni (aggiunta di patologie/condizioni; aggiunta di uso concomitante; reazioni in corso diventa reazioni; cancellare genere, storia pregressa e parametri in corso)</p></li><li><p>Miglioramento precision e recall intervenendo su:</p></li></ol></li></ol><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Evitare effetto kws</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ii.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Il passaggio giusto, che c’è sempre, deve diventare sentence</p>
+integrare pubmed - <p>scheda add pubmed kb (regex or NL)</p>
+Warning text deve rispondere a perchè assumere questo farmaco è un problema? - 
+cliccare sul warning setta sia il pdf di medicina che paziente nel viewer - 
+integrare nuova versione master sensigrafo - 
+arrivare a un buon punto in inglese - 
+provare con russo - 
+segnalare problemi - 
+2026-03-15 19:04:04 | INFO | Cache hit
+2026-03-15 19:08:29 | INFO | User query: 'what are my pending tasks?'
+2026-03-15 19:08:29 | INFO | Cache miss
+2026-03-15 19:08:29 | INFO | Processing user input: what are my pending tasks?
+2026-03-15 19:08:31 | INFO | Action: get_tasks
+2026-03-15 19:08:31 | INFO | Retrieved tasks: Pending Tasks: 
+
+Aggiungere documenti nuovi ad una base dati gia presente, oltre che creare nuove basi dati - Aggiungere documenti nuovi ad una base dati gia presente, oltre che creare nuove basi dati
+Aggiungere risultati del crawler a una base dati gia presente - Per far questo abbiamo stabilito che se il sistema non trova risposta nella base dati selezionata, va prima nella cartella del crawler. Se trova il risultato lo può indicizzare nella sua base dati come fa con storm. Se nemmeno nella cartella del crawler ha trovato nulla, allora va su storm
+rhasspy wake word setup - 
+translate internally query to english if not in english before using it to retrieve passages - 
+aggiungere flag divulgativo netutro dettagliato (per adesso flag dettaglio si/no) - <p></p>
+istanze saroglia -> integrare osservazioni nel prompt e aumentare il modello - 
+temperatura piu alta per una domanda (colore rosso) - <p></p>
+Sfondo bianco - 
+Miglioramento Qualità warning - <ol type="1"><li><p>Intervenire sulle cose segnalate nella&nbsp; mail di venerdì 31/10/2025 17:03 con relativo report e in generale su:</p><ol type="a"><li><p>Modifica elenco di condizioni (aggiunta di patologie/condizioni; aggiunta di uso concomitante; reazioni in corso diventa reazioni; cancellare genere, storia pregressa e parametri in corso)</p></li><li><p>Miglioramento precision e recall intervenendo su:</p></li></ol></li></ol><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Evitare effetto kws</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ii.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Il passaggio giusto, che c’è sempre, deve diventare sentence</p>
+integrare pubmed - <p>scheda add pubmed kb (regex or NL)</p>
+Warning text deve rispondere a perchè assumere questo farmaco è un problema? - 
+cliccare sul warning setta sia il pdf di medicina che paziente nel viewer - 
+integrare nuova versione master sensigrafo - 
+arrivare a un buon punto in inglese - 
+provare con russo - 
+segnalare problemi - 
+2026-03-15 19:08:31 | INFO | Running GLaDOS Responder Agent with user input: what are my pending tasks? and tool result: Pending Tasks: 
+
+Aggiungere documenti nuovi ad una base dati gia presente, oltre che creare nuove basi dati - Aggiungere documenti nuovi ad una base dati gia presente, oltre che creare nuove basi dati
+Aggiungere risultati del crawler a una base dati gia presente - Per far questo abbiamo stabilito che se il sistema non trova risposta nella base dati selezionata, va prima nella cartella del crawler. Se trova il risultato lo può indicizzare nella sua base dati come fa con storm. Se nemmeno nella cartella del crawler ha trovato nulla, allora va su storm
+rhasspy wake word setup - 
+translate internally query to english if not in english before using it to retrieve passages - 
+aggiungere flag divulgativo netutro dettagliato (per adesso flag dettaglio si/no) - <p></p>
+istanze saroglia -> integrare osservazioni nel prompt e aumentare il modello - 
+temperatura piu alta per una domanda (colore rosso) - <p></p>
+Sfondo bianco - 
+Miglioramento Qualità warning - <ol type="1"><li><p>Intervenire sulle cose segnalate nella&nbsp; mail di venerdì 31/10/2025 17:03 con relativo report e in generale su:</p><ol type="a"><li><p>Modifica elenco di condizioni (aggiunta di patologie/condizioni; aggiunta di uso concomitante; reazioni in corso diventa reazioni; cancellare genere, storia pregressa e parametri in corso)</p></li><li><p>Miglioramento precision e recall intervenendo su:</p></li></ol></li></ol><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Evitare effetto kws</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ii.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Il passaggio giusto, che c’è sempre, deve diventare sentence</p>
+integrare pubmed - <p>scheda add pubmed kb (regex or NL)</p>
+Warning text deve rispondere a perchè assumere questo farmaco è un problema? - 
+cliccare sul warning setta sia il pdf di medicina che paziente nel viewer - 
+integrare nuova versione master sensigrafo - 
+arrivare a un buon punto in inglese - 
+provare con russo - 
+segnalare problemi - 
+2026-03-15 19:08:31 | INFO | Cache miss
+2026-03-15 19:10:57 | INFO | User query: 'what are my pending tasks?'
+2026-03-15 19:10:57 | INFO | Cache hit
+2026-03-15 19:10:57 | INFO | Processing user input: what are my pending tasks?
+2026-03-15 19:10:58 | INFO | Action: get_tasks
+2026-03-15 19:10:59 | INFO | Retrieved tasks: Pending Tasks: 
+
+Aggiungere documenti nuovi ad una base dati gia presente, oltre che creare nuove basi dati - Aggiungere documenti nuovi ad una base dati gia presente, oltre che creare nuove basi dati
+Aggiungere risultati del crawler a una base dati gia presente - Per far questo abbiamo stabilito che se il sistema non trova risposta nella base dati selezionata, va prima nella cartella del crawler. Se trova il risultato lo può indicizzare nella sua base dati come fa con storm. Se nemmeno nella cartella del crawler ha trovato nulla, allora va su storm
+rhasspy wake word setup - 
+translate internally query to english if not in english before using it to retrieve passages - 
+aggiungere flag divulgativo netutro dettagliato (per adesso flag dettaglio si/no) - <p></p>
+istanze saroglia -> integrare osservazioni nel prompt e aumentare il modello - 
+temperatura piu alta per una domanda (colore rosso) - <p></p>
+Sfondo bianco - 
+Miglioramento Qualità warning - <ol type="1"><li><p>Intervenire sulle cose segnalate nella&nbsp; mail di venerdì 31/10/2025 17:03 con relativo report e in generale su:</p><ol type="a"><li><p>Modifica elenco di condizioni (aggiunta di patologie/condizioni; aggiunta di uso concomitante; reazioni in corso diventa reazioni; cancellare genere, storia pregressa e parametri in corso)</p></li><li><p>Miglioramento precision e recall intervenendo su:</p></li></ol></li></ol><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Evitare effetto kws</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ii.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Il passaggio giusto, che c’è sempre, deve diventare sentence</p>
+integrare pubmed - <p>scheda add pubmed kb (regex or NL)</p>
+Warning text deve rispondere a perchè assumere questo farmaco è un problema? - 
+cliccare sul warning setta sia il pdf di medicina che paziente nel viewer - 
+integrare nuova versione master sensigrafo - 
+arrivare a un buon punto in inglese - 
+provare con russo - 
+segnalare problemi - 
+2026-03-15 19:10:59 | INFO | Running GLaDOS Responder Agent with user input: what are my pending tasks? and tool result: Pending Tasks: 
+
+Aggiungere documenti nuovi ad una base dati gia presente, oltre che creare nuove basi dati - Aggiungere documenti nuovi ad una base dati gia presente, oltre che creare nuove basi dati
+Aggiungere risultati del crawler a una base dati gia presente - Per far questo abbiamo stabilito che se il sistema non trova risposta nella base dati selezionata, va prima nella cartella del crawler. Se trova il risultato lo può indicizzare nella sua base dati come fa con storm. Se nemmeno nella cartella del crawler ha trovato nulla, allora va su storm
+rhasspy wake word setup - 
+translate internally query to english if not in english before using it to retrieve passages - 
+aggiungere flag divulgativo netutro dettagliato (per adesso flag dettaglio si/no) - <p></p>
+istanze saroglia -> integrare osservazioni nel prompt e aumentare il modello - 
+temperatura piu alta per una domanda (colore rosso) - <p></p>
+Sfondo bianco - 
+Miglioramento Qualità warning - <ol type="1"><li><p>Intervenire sulle cose segnalate nella&nbsp; mail di venerdì 31/10/2025 17:03 con relativo report e in generale su:</p><ol type="a"><li><p>Modifica elenco di condizioni (aggiunta di patologie/condizioni; aggiunta di uso concomitante; reazioni in corso diventa reazioni; cancellare genere, storia pregressa e parametri in corso)</p></li><li><p>Miglioramento precision e recall intervenendo su:</p></li></ol></li></ol><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;i.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Evitare effetto kws</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ii.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Il passaggio giusto, che c’è sempre, deve diventare sentence</p>
+integrare pubmed - <p>scheda add pubmed kb (regex or NL)</p>
+Warning text deve rispondere a perchè assumere questo farmaco è un problema? - 
+cliccare sul warning setta sia il pdf di medicina che paziente nel viewer - 
+integrare nuova versione master sensigrafo - 
+arrivare a un buon punto in inglese - 
+provare con russo - 
+segnalare problemi - 
+2026-03-15 19:10:59 | INFO | Cache hit
