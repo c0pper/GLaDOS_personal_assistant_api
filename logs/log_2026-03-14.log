@@ -1,0 +1,34 @@
+2026-03-14 19:06:48 | INFO | Running Home Assistant Agent with user query: turn ceiling lights off
+2026-03-14 19:06:48 | INFO | Invoking intent: TurnOffCeilingLights
+2026-03-14 19:06:48 | INFO | Intent invoked successfully: {'speech': {'plain': {'speech': 'Turning off the ceiling lights.', 'extra_data': None}}, 'card': {}, 'language': 'en', 'response_type': 'action_done', 'data': {'targets': [], 'success': [], 'failed': []}}
+2026-03-14 19:06:58 | INFO | Running Home Assistant Agent with user query: turn ceiling lights on
+2026-03-14 19:06:59 | INFO | Invoking intent: TurnOnCeilingLights
+2026-03-14 19:06:59 | INFO | Intent invoked successfully: {'speech': {'plain': {'speech': 'Turning on the ceiling lights.', 'extra_data': None}}, 'card': {}, 'language': 'en', 'response_type': 'action_done', 'data': {'targets': [], 'success': [], 'failed': []}}
+2026-03-14 19:08:01 | INFO | Running Home Assistant Agent with user query: turn mood lights on
+2026-03-14 19:08:02 | INFO | Invoking intent: TurnOnMoodLights
+2026-03-14 19:08:02 | INFO | Intent invoked successfully: {'speech': {'plain': {'speech': 'Turning on the mood lights.', 'extra_data': None}}, 'card': {}, 'language': 'en', 'response_type': 'action_done', 'data': {'targets': [], 'success': [], 'failed': []}}
+2026-03-14 19:08:12 | INFO | Running Home Assistant Agent with user query: turn mood lights off
+2026-03-14 19:08:12 | INFO | Invoking intent: TurnOffMoodLights
+2026-03-14 19:08:12 | INFO | Intent invoked successfully: {'speech': {'plain': {'speech': 'Turning off the mood lights.', 'extra_data': None}}, 'card': {}, 'language': 'en', 'response_type': 'action_done', 'data': {'targets': [], 'success': [], 'failed': []}}
+2026-03-14 19:09:26 | INFO | Running Home Assistant Agent with user query: turn mood lights on
+2026-03-14 19:09:27 | INFO | Invoking intent: TurnOnMoodLights
+2026-03-14 19:09:28 | INFO | Intent invoked successfully: {'speech': {'plain': {'speech': 'Turning on the mood lights.', 'extra_data': None}}, 'card': {}, 'language': 'en', 'response_type': 'action_done', 'data': {'targets': [], 'success': [], 'failed': []}}
+2026-03-14 19:09:39 | INFO | Running Home Assistant Agent with user query: turn them off again
+2026-03-14 19:09:40 | INFO | Invoking intent: TurnOffMoodLights
+2026-03-14 19:09:40 | INFO | Intent invoked successfully: {'speech': {'plain': {'speech': 'Turning off the mood lights.', 'extra_data': None}}, 'card': {}, 'language': 'en', 'response_type': 'action_done', 'data': {'targets': [], 'success': [], 'failed': []}}
+2026-03-14 19:11:14 | INFO | Tool selected: Home Assistant Tool
+2026-03-14 19:11:14 | INFO | Running Home Assistant Agent with user query: turn mood lights on
+2026-03-14 19:11:14 | INFO | Invoking intent: TurnOnMoodLights
+2026-03-14 19:11:14 | INFO | Intent invoked successfully: {'speech': {'plain': {'speech': 'Turning on the mood lights.', 'extra_data': None}}, 'card': {}, 'language': 'en', 'response_type': 'action_done', 'data': {'targets': [], 'success': [], 'failed': []}}
+2026-03-14 19:11:26 | INFO | Tool selected: Home Assistant Tool
+2026-03-14 19:11:26 | INFO | Running Home Assistant Agent with user query: turn mood lights off
+2026-03-14 19:11:27 | INFO | Invoking intent: TurnOffMoodLights
+2026-03-14 19:11:27 | INFO | Intent invoked successfully: {'speech': {'plain': {'speech': 'Turning off the mood lights.', 'extra_data': None}}, 'card': {}, 'language': 'en', 'response_type': 'action_done', 'data': {'targets': [], 'success': [], 'failed': []}}
+2026-03-14 19:35:27 | INFO | Tool selected: Home Assistant Tool
+2026-03-14 19:35:27 | INFO | Running Home Assistant Agent with user query: ceiling lights off
+2026-03-14 19:35:28 | INFO | Invoking intent: TurnOffCeilingLights
+2026-03-14 19:35:28 | INFO | Intent invoked successfully: {'speech': {'plain': {'speech': 'Turning off the ceiling lights.', 'extra_data': None}}, 'card': {}, 'language': 'en', 'response_type': 'action_done', 'data': {'targets': [], 'success': [], 'failed': []}}
+2026-03-14 19:35:36 | INFO | Tool selected: Home Assistant Tool
+2026-03-14 19:35:36 | INFO | Running Home Assistant Agent with user query: ceiling lights on
+2026-03-14 19:35:37 | INFO | Invoking intent: TurnOnCeilingLights
+2026-03-14 19:35:37 | INFO | Intent invoked successfully: {'speech': {'plain': {'speech': 'Turning on the ceiling lights.', 'extra_data': None}}, 'card': {}, 'language': 'en', 'response_type': 'action_done', 'data': {'targets': [], 'success': [], 'failed': []}}

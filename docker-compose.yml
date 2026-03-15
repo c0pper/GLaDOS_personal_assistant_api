@@ -1,0 +1,24 @@
+services:
+  app:
+    image: glados_api:0.1.4
+    pull_policy: never
+    container_name: glados_api
+    ports:
+      - "7000:8000"
+
+    environment:
+      TZ: Europe/Rome
+      PYTHONPATH: /app
+      UV_NO_DEV: "1"
+      # example variables
+      OPENROUTER_API_KEY: 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
+      SEARXNG_URL: http://192.168.1.4:8899
+      VIKUNJA_BASE_URL: http://192.168.1.4:3456/api/v1
+      VIKUNJA_TOKEN: tk_aae9e687789e7abb761407d593cbb7d6a29c051a
+      HOME_ASSISTANT_BASE_URL: http://192.168.1.144:8123
+      HOME_ASSISTANT_TOKEN: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJiZTFiMWZhZjBjYzY0NDkxYmZlNTQ2ODc0YjVlMGY5ZiIsImlhdCI6MTc0MjA0Njc5NywiZXhwIjoyMDU3NDA2Nzk3fQ.Xk8w0eE42xjoHEuzckwMjD7u_yArvuuU-QGpdPq_Y4Q
+
+    volumes:
+      - ./db/llm_cache.db:/app/db/llm_cache.db
+
+    restart: unless-stopped
