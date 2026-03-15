@@ -11,12 +11,12 @@ services:
       PYTHONPATH: /app
       UV_NO_DEV: "1"
       # example variables
-      OPENROUTER_API_KEY: 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
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       SEARXNG_URL: http://192.168.1.4:8899
       VIKUNJA_BASE_URL: http://192.168.1.4:3456/api/v1
-      VIKUNJA_TOKEN: tk_aae9e687789e7abb761407d593cbb7d6a29c051a
+      VIKUNJA_TOKEN: ${VIKUNJA_TOKEN}
       HOME_ASSISTANT_BASE_URL: http://192.168.1.144:8123
-      HOME_ASSISTANT_TOKEN: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJiZTFiMWZhZjBjYzY0NDkxYmZlNTQ2ODc0YjVlMGY5ZiIsImlhdCI6MTc0MjA0Njc5NywiZXhwIjoyMDU3NDA2Nzk3fQ.Xk8w0eE42xjoHEuzckwMjD7u_yArvuuU-QGpdPq_Y4Q
+      HOME_ASSISTANT_TOKEN: ${HOME_ASSISTANT_TOKEN}
 
     volumes:
       - ./db/llm_cache.db:/app/db/llm_cache.db
