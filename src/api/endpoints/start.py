@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from src.agents.orchestrator_agent import get_tool_name
 from src.agents.home_assistant_agent import run_home_assistant_agent
@@ -10,6 +12,22 @@ router = APIRouter()
 
 class StartRequest(BaseModel):
     message: str
+
+class Intent(BaseModel):
+    confidence: float
+    name: str
+
+class RhasspyRequest(BaseModel):
+    entities: List[Any]
+    intent: Intent
+    raw_text: str
+    raw_tokens: List[str]
+    recognize_seconds: float
+    slots: Dict[str, Any]
+    speech_confidence: float
+    text: str
+    tokens: List[str]
+    wakeword_id: Optional[str] = None
 
 
 @router.post("/start")
@@ -44,3 +62,13 @@ async def start(request: StartRequest):
         return {"message": final_response}
 
     return {"message": f"Sorry, I don't know how to help you with that."}
+
+# rhasspy endpoint accepts any json
+@router.post("/start_rhasspy")
+async def start_rhasspy(request: Request):
+    data = await request.json()
+
+    user_input = data["raw_text"]
+    start_request = StartRequest(message=user_input)
+    start_response = await start(start_request)
+    return start_response

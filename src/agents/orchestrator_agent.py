@@ -119,6 +119,7 @@ def get_tool_name(user_input: str) -> str:
     if cached:
         if cached.get("tool_name"):
             logger.info("Cache hit")
+            logger.info(f"Cached result: {cached}")
             return cached["tool_name"]
 
     logger.info("Cache miss")
@@ -129,6 +130,8 @@ def get_tool_name(user_input: str) -> str:
     result = output.model_dump()
 
     cache.set(user_input, result)
+
+    logger.info(f"Fresh result: {result}")
 
     return result["tool_name"]
 

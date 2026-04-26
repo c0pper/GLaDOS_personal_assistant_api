@@ -1,6 +1,6 @@
 services:
   app:
-    image: glados_api:0.1.4
+    image: glados_api:0.1.5
     pull_policy: never
     container_name: glados_api
     ports:
