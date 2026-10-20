@@ -2,7 +2,8 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
-from src.agents.orchestrator_agent import get_tool_name
+
+from src.agents.orchestrator_agent import route_query
 from src.agents.home_assistant_agent import run_home_assistant_agent
 from src.agents.glados_responder_agent import get_final_glados_response
 from src.agents.vikunja_agent import run_vikunja_agent
@@ -32,36 +33,34 @@ class RhasspyRequest(BaseModel):
 
 @router.post("/start")
 async def start(request: StartRequest):
-    tool_name = get_tool_name(request.message)
-    if not tool_name:
-        return {"message": "Sorry, I don't know how to help you with that."}
+    route = await route_query(request.message)
 
-    if tool_name == "Home Assistant Tool":
-        result = run_home_assistant_agent(request.message)
+    if route.tool_name == "Home Assistant Tool":
+        intent_name = route.home_assistant_intent.value if route.home_assistant_intent else None
+        result = await run_home_assistant_agent(request.message, intent_name)
         if result.get("error"):
             return {"message": result["error"]}
 
-        speech = result["speech"]["plain"]["speech"]
-        final_response = get_final_glados_response(
-            user_input=request.message, 
-            tool_result=speech
-        )
+        tool_result = result.get("speech", {}).get("plain", {}).get("speech")
 
-        return {"message": final_response}
-
-    if tool_name == "Vikunja Tool":
-        result = run_vikunja_agent(request.message)
-        if not result:
+    elif route.tool_name == "Vikunja Tool":
+        tool_result = await run_vikunja_agent(request.message)
+        if not tool_result:
             return {"message": "run_vikunja_agent returned None."}
 
-        final_response = get_final_glados_response(
-            user_input=request.message, 
-            tool_result=str(result)
-        )
+    elif route.tool_name == "No Tool":
+        # Plain conversation: no tool call needed, GLaDOS answers directly.
+        tool_result = None
 
-        return {"message": final_response}
+    else:
+        return {"message": "Sorry, I don't know how to help you with that."}
 
-    return {"message": f"Sorry, I don't know how to help you with that."}
+    final_response = await get_final_glados_response(
+        user_input=request.message,
+        tool_result=tool_result
+    )
+
+    return {"message": final_response}
 
 # rhasspy endpoint accepts any json
 @router.post("/start_rhasspy")

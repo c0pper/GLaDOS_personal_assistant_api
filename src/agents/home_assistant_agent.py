@@ -1,14 +1,18 @@
 from enum import Enum
-from typing import List, Literal, Optional
-from openai import OpenAI as OpenRouterClient
+from typing import Optional
+
 from pydantic import Field
 from atomic_agents import AtomicAgent, AgentConfig, BaseIOSchema
-from atomic_agents.context import SystemPromptGenerator, BaseDynamicContextProvider, ChatHistory
+from atomic_agents.context import SystemPromptGenerator, BaseDynamicContextProvider
+import httpx
+
 from src.config import Config
-import instructor
-import requests
 from src.logger import logger
+from src.services.http_clients import home_assistant_client
 from src.services.llm_cache.llm_cache import cache
+from src.services.llm_client import llm_client
+
+CACHE_NAMESPACE = "home_assistant_intent"
 
 
 ##########################
@@ -58,111 +62,102 @@ class AvailableIntentsProvider(BaseDynamicContextProvider):
 ######################
 # HOME AGENT CONFIG #
 ######################
-home_assistant_agent_config = AgentConfig(
-    client=instructor.from_openai(
-        OpenRouterClient(base_url="https://openrouter.ai/api/v1", api_key=Config.OPENROUTER_API_KEY),
-    ),
-    model=Config.HOME_ASSISTANT_AGENT_MODEL,
-    history=ChatHistory(max_messages=10),
-    system_prompt_generator=SystemPromptGenerator(
-        background=[
-            "You are a Home Assistant agent.",
-            "Your primary role is to choose the right intent name among those available based on the user query.",
-        ],
-        output_instructions=[
-            "Select exactly one intent name from the available intents.",
-            "Format output according to schema."
-        ],
-    )
+# Shared, stateless pieces. A fresh agent (with empty history) is built per call so that
+# concurrent requests never share or grow a conversation history.
+system_prompt_generator = SystemPromptGenerator(
+    background=[
+        "You are a Home Assistant agent.",
+        "Your primary role is to choose the right intent name among those available based on the user query.",
+    ],
+    output_instructions=[
+        "Select exactly one intent name from the available intents.",
+        "Format output according to schema."
+    ],
+    context_providers={"available_intents": AvailableIntentsProvider("Available Intents")},
 )
 
-agent = AtomicAgent[HomeAssistantInputSchema, HomeAssistantOutputSchema](config=home_assistant_agent_config)
-agent.register_context_provider("available_intents", AvailableIntentsProvider("Available Intents"))
+
+def build_agent() -> AtomicAgent[HomeAssistantInputSchema, HomeAssistantOutputSchema]:
+    return AtomicAgent[HomeAssistantInputSchema, HomeAssistantOutputSchema](
+        config=AgentConfig(
+            client=llm_client,
+            model=Config.HOME_ASSISTANT_AGENT_MODEL,
+            system_prompt_generator=system_prompt_generator,
+        )
+    )
 
 
 #########################
 # HOME ASSISTANT METHODS #
 #########################
-def invoke_intent(intent_name: str) -> dict:
+async def invoke_intent(intent_name: str) -> dict:
     """
     Call Home Assistant's intent API with the given intent.
     """
-    url = f"{Config.HOME_ASSISTANT_BASE_URL}/api/intent/handle"
-
-    payload = {"name": intent_name}
-
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {Config.HOME_ASSISTNAT_TOKEN}"
-    }
-
-    response = requests.post(url, json=payload, headers=headers)
+    try:
+        response = await home_assistant_client.post("/api/intent/handle", json={"name": intent_name})
+    except httpx.HTTPError as e:
+        logger.error(f"Failed to invoke intent: {e}")
+        return {"error": f"Failed to invoke intent: {e}"}
 
     if response.status_code in (200, 201):
-        logger.info(f"Intent invoked successfully: {response.json()}")
-        return response.json()
-    else:
-        logger.error(f"Failed to invoke intent: {response.status_code} - {response.text}")
-        return {"error": f"Failed to invoke intent: {response.status_code} - {response.text}"}
+        result = response.json()
+        logger.info(f"Intent invoked successfully: {result}")
+        return result
 
-def get_intent_name(user_query: str) -> Optional[str]:
+    logger.error(f"Failed to invoke intent: {response.status_code} - {response.text}")
+    return {"error": f"Failed to invoke intent: {response.status_code} - {response.text}"}
+
+
+async def get_intent_name(user_query: str) -> str:
     """
     Run the agent with the user's query.
     """
-
     logger.info(f"Running Home Assistant Agent with user query: {user_query}")
-    
-    cached = cache.get(user_query)
 
-    if cached:
-        if cached.get("intent_name"):
-            logger.info("Cache hit")
-            return cached["intent_name"]
+    cached = cache.get(CACHE_NAMESPACE, user_query)
+
+    if cached and cached.get("intent_name"):
+        logger.info("Cache hit")
+        return cached["intent_name"]
 
     logger.info("Cache miss")
 
-    response = agent.run(HomeAssistantInputSchema(user_query=user_query))
+    response = await build_agent().run_async(HomeAssistantInputSchema(user_query=user_query))
 
-    result = response.model_dump()
+    result = response.model_dump(mode="json")
 
-    cache.set(user_query, result)
+    cache.set(CACHE_NAMESPACE, user_query, result)
 
-    return result["intent_name"].value
+    return result["intent_name"]
 
-def run_home_assistant_agent(user_query: str) -> Optional[dict]:
+
+async def run_home_assistant_agent(user_query: str, intent_name: Optional[str] = None) -> dict:
     """
-    Run the Home Assistant Agent to get the intent name.
+    Invoke the Home Assistant intent for the user's query.
+    If the orchestrator already picked the intent, the intent LLM call is skipped.
     """
-    logger.info(f"==="*10)
-    intent_name = get_intent_name(user_query)
-
     if not intent_name:
-        return None
+        intent_name = await get_intent_name(user_query)
 
     logger.info(f"Invoking intent: {intent_name}")
-    result = invoke_intent(intent_name)
+    return await invoke_intent(intent_name)
 
-    return result
 
 #####################
 # DEMO EXECUTION #
 #####################
 if __name__ == "__main__":
-    # Example 1: Turn on ceiling lights
-    run_home_assistant_agent("Turn on the mood lights")
-    
-    # Example 2: Get temperature
-    run_home_assistant_agent("What is the temperature right now?")
+    import asyncio
 
-    # Example 3: Turn on ceiling lights
-    run_home_assistant_agent("Turn on the ceiling lights")
+    async def main():
+        # Example 1: Turn on mood lights
+        print(await run_home_assistant_agent("Turn on the mood lights"))
 
-    # agent = AtomicAgent[HomeAssistantInputSchema, HomeAssistantOutputSchema](config=home_assistant_agent_config)
-    # agent.register_context_provider("available_intents", AvailableIntentsProvider("Available Intents"))
-    # output1 = agent.run(HomeAssistantInputSchema(user_query="Turn on the Keyboard Strip"))
-    # print(output1)
+        # Example 2: Get temperature
+        print(await run_home_assistant_agent("What is the temperature right now?"))
 
-    # # Example 2: Get temperature
-    # output2 = agent.run(HomeAssistantInputSchema(user_query="What is the temperature right now?"))
-    # print(output2)
+        # Example 3: Turn on ceiling lights
+        print(await run_home_assistant_agent("Turn on the ceiling lights"))
+
+    asyncio.run(main())

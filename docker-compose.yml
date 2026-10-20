@@ -19,6 +19,6 @@ services:
       HOME_ASSISTANT_TOKEN: ${HOME_ASSISTANT_TOKEN}
 
     volumes:
-      - ./db/llm_cache.db:/app/db/llm_cache.db
+      - ./db:/app/db
 
     restart: unless-stopped

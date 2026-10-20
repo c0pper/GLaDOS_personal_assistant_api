@@ -20,3 +20,9 @@ class Config:
     HOME_ASSISTANT_AGENT_MODEL: str = "google/gemini-2.5-flash-lite"
     HOME_ASSISTNAT_TOKEN: str = os.environ["HOME_ASSISTANT_TOKEN"]
     HOME_ASSISTANT_BASE_URL: str = os.environ["HOME_ASSISTANT_BASE_URL"]
+
+    LLM_TIMEOUT_SECONDS: float = 30.0
+    HTTP_TIMEOUT_SECONDS: float = 10.0
+    VIKUNJA_PROJECTS_TTL_SECONDS: float = 600.0
+
+    LLM_CACHE_DB_PATH: str = os.environ.get("LLM_CACHE_DB_PATH", "db/llm_cache.db")

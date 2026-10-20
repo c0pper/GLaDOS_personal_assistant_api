@@ -9,3 +9,8 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Runtime data and repo metadata
+.git
+.logs
+db/

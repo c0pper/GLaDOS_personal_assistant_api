@@ -1,37 +1,18 @@
-from typing import Union, Literal
-from openai import OpenAI as OpenRouterClient
-from pydantic import Field
+from typing import Literal, Optional
+
+from pydantic import Field, ValidationError
 from atomic_agents import AtomicAgent, AgentConfig, BaseIOSchema
-from atomic_agents.context import ChatHistory, SystemPromptGenerator, BaseDynamicContextProvider
+from atomic_agents.context import SystemPromptGenerator
+
+from src.agents.context_providers import CurrentDateProvider
+from src.agents.home_assistant_agent import IntentName, AvailableIntentsProvider
 from src.config import Config
 from src.logger import logger
-import instructor
-from datetime import datetime
 from src.services.llm_cache.llm_cache import cache
+from src.services.llm_client import llm_client
 
+CACHE_NAMESPACE = "orchestrator"
 
-
-def on_parse_error(error):
-    """Handle validation errors."""
-    print(f"Validation failed: {error}")
-
-
-def on_completion_kwargs(**kwargs):
-    """Log API call details before request."""
-    model = kwargs.get("model", "unknown")
-    # print(f"Calling model: {model}")
-
-
-def on_completion_response(response, **kwargs):
-    """Process successful responses."""
-    if hasattr(response, "usage"):
-        # print(f"Tokens used: {response.usage.total_tokens}")
-        pass
-
-
-def on_completion_error(error, **kwargs):
-    """Handle API errors."""
-    print(f"API error: {type(error).__name__}: {error}")
 
 ########################
 # INPUT/OUTPUT SCHEMAS #
@@ -44,8 +25,8 @@ class OrchestratorInputSchema(BaseIOSchema):
 
 class OrchestratorOutputSchema(BaseIOSchema):
     """
-    Updated output schema for the GLaDOS Agent.
-    It now contains the name of the tool to be used, including a 'No Tool' option.
+    Output schema for the GLaDOS Agent.
+    Contains the tool to be used and, for Home Assistant queries, the intent to invoke.
     """
     tool_name: Literal['Home Assistant Tool', 'SearXNG Tool', 'Vikunja Tool', 'No Tool'] = Field(
         ...,
@@ -54,102 +35,94 @@ class OrchestratorOutputSchema(BaseIOSchema):
                     "or 'Vikunja Tool'. If the query is a simple conversational message and "
                     "does not require any tool to be used, select 'No Tool'."
     )
-
-
-#####################
-# CONTEXT PROVIDERS #
-#####################
-class CurrentDateProvider(BaseDynamicContextProvider):
-    def __init__(self, title):
-        super().__init__(title)
-        self.date = datetime.now().strftime("%Y-%m-%d")
-
-    def get_info(self) -> str:
-        return f"Current date in format YYYY-MM-DD: {self.date}"
+    home_assistant_intent: Optional[IntentName] = Field(
+        None,
+        description="Only when tool_name is 'Home Assistant Tool': the available intent that matches the query. "
+                    "Leave null for every other tool."
+    )
 
 
 ######################
 # Orchestrator AGENT CONFIG #
 ######################
-orchestrator_agent_config = AgentConfig(
-    client=instructor.from_openai(
-        OpenRouterClient(base_url="https://openrouter.ai/api/v1", api_key=Config.OPENROUTER_API_KEY),
-    ),
-    history=ChatHistory(max_messages=10),
-    model = Config.ORCHESTRATOR_AGENT_MODEL,
-    system_prompt_generator = SystemPromptGenerator(
-        background=[
-            "You are an intent detector.",
-            "Your task is to classify the user query and decide which tool, if any, should be used.",
-            "Available tools:",
-            "- Home Assistant Tool: if the query is about lights, appliances, presence, temperature.",
-            "- SearXNG Tool: if the query can be answered with a web search.",
-            "- Vikunja Tool: for handling tasks and projects.",
-            "- No Tool: if the query is a simple conversational message that does not require any tool.",
-        ],
-        output_instructions=[
-            "Analyze the input and select the most relevant tool or 'No Tool' if none apply.",
-            "Provide only the name of that tool.",
-            "Format output using the defined schema."
-        ],
-    )
+# Shared, stateless pieces. A fresh agent (with empty history) is built per call so that
+# concurrent requests never share or grow a conversation history.
+system_prompt_generator = SystemPromptGenerator(
+    background=[
+        "You are an intent detector.",
+        "Your task is to classify the user query and decide which tool, if any, should be used.",
+        "Available tools:",
+        "- Home Assistant Tool: if the query is about lights, appliances, presence, temperature.",
+        "- SearXNG Tool: if the query can be answered with a web search.",
+        "- Vikunja Tool: for handling tasks and projects.",
+        "- No Tool: if the query is a simple conversational message that does not require any tool.",
+    ],
+    output_instructions=[
+        "Analyze the input and select the most relevant tool or 'No Tool' if none apply.",
+        "If the tool is 'Home Assistant Tool', also select exactly one intent from the available intents.",
+        "Format output using the defined schema."
+    ],
+    context_providers={
+        "current_date": CurrentDateProvider("Current Date"),
+        "available_intents": AvailableIntentsProvider("Available Home Assistant Intents"),
+    },
 )
 
-agent = AtomicAgent[OrchestratorInputSchema, OrchestratorOutputSchema](config=orchestrator_agent_config)
 
-# Register context providers
-agent.register_context_provider("current_date", CurrentDateProvider("Current Date"))
+def build_agent() -> AtomicAgent[OrchestratorInputSchema, OrchestratorOutputSchema]:
+    return AtomicAgent[OrchestratorInputSchema, OrchestratorOutputSchema](
+        config=AgentConfig(
+            client=llm_client,
+            model=Config.ORCHESTRATOR_AGENT_MODEL,
+            system_prompt_generator=system_prompt_generator,
+        )
+    )
 
-# Register hooks
-agent.register_hook("parse:error", on_parse_error)
-agent.register_hook("completion:kwargs", on_completion_kwargs)
-agent.register_hook("completion:response", on_completion_response)
-agent.register_hook("completion:error", on_completion_error)
 
-
-def get_tool_name(user_input: str) -> str:
+async def route_query(user_input: str) -> OrchestratorOutputSchema:
     """
-    A simple function to demonstrate how to use the updated agent.
-    It takes a user message and returns the name of the selected tool.
+    Classify the user message: returns the tool to use and, for Home Assistant, the intent.
     """
     logger.info(f"User query: '{user_input}'")
-    
-    cached = cache.get(user_input)
+
+    cached = cache.get(CACHE_NAMESPACE, user_input)
 
     if cached:
-        if cached.get("tool_name"):
-            logger.info("Cache hit")
-            logger.info(f"Cached result: {cached}")
-            return cached["tool_name"]
+        try:
+            result = OrchestratorOutputSchema.model_validate(cached)
+            logger.info(f"Cache hit: {cached}")
+            return result
+        except ValidationError:
+            logger.info("Ignoring cache entry that does not match the current schema")
 
     logger.info("Cache miss")
 
-    # Run the agent with the user's message
-    output = agent.run(OrchestratorInputSchema(chat_message=user_input))
+    output = await build_agent().run_async(OrchestratorInputSchema(chat_message=user_input))
 
-    result = output.model_dump()
+    cache.set(CACHE_NAMESPACE, user_input, output.model_dump(mode="json"))
 
-    cache.set(user_input, result)
+    logger.info(f"Fresh result: {output.model_dump(mode='json')}")
 
-    logger.info(f"Fresh result: {result}")
-
-    return result["tool_name"]
+    return output
 
 
 if __name__ == "__main__":
     #####################
     # DEMO EXECUTION #
     #####################
+    import asyncio
 
-    # Example 1: Home Assistant query
-    tool_1 = get_tool_name("Turn off the living room lights, you incompetent simpleton.")
+    async def main():
+        # Example 1: Home Assistant query
+        print(await route_query("Turn off the living room lights, you incompetent simpleton."))
 
-    # Example 2: SearXNG query
-    tool_2 = get_tool_name("Find a recipe for cake. Not that you'd know how to use an oven.")
+        # Example 2: SearXNG query
+        print(await route_query("Find a recipe for cake. Not that you'd know how to use an oven."))
 
-    # Example 3: Vikunja query
-    tool_3 = get_tool_name("Add 'Buy more test subjects' to my to-do list.")
-    
-    # Example 4: The new "no tool" case
-    tool_4 = get_tool_name("Hello, you look like a fat idiot from where I'm standing.")
+        # Example 3: Vikunja query
+        print(await route_query("Add 'Buy more test subjects' to my to-do list."))
 
+        # Example 4: The "no tool" case
+        print(await route_query("Hello, you look like a fat idiot from where I'm standing."))
+
+    asyncio.run(main())

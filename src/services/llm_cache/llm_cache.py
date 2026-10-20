@@ -1,71 +1,75 @@
-import sqlite3
-import json
+from typing import Optional
 from pathlib import Path
+import sqlite3
+import threading
+import json
+
+from src.config import Config
 
 
 class LLMCache:
+    """
+    SQLite cache for LLM outputs.
+
+    Entries are keyed by (namespace, query) so each agent owns its own entries,
+    instead of all agents merging fields into a single row per user query.
+    """
+
     def __init__(self, db_path: str = "db/llm_cache.db"):
-        self.conn = sqlite3.connect(db_path)
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        self.lock = threading.Lock()
+        self.conn = sqlite3.connect(db_path, check_same_thread=False)
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA synchronous=NORMAL")
         self._create_table()
 
     def _create_table(self):
-        self.conn.execute("""
-        CREATE TABLE IF NOT EXISTS cache (
-            query TEXT PRIMARY KEY,
-            response TEXT
-        )
-        """)
-        self.conn.commit()
+        with self.lock, self.conn:
+            # The old single-key table cached responses without their tool result, so it held stale answers.
+            self.conn.execute("DROP TABLE IF EXISTS cache")
+            self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS llm_cache (
+                namespace TEXT NOT NULL,
+                query TEXT NOT NULL,
+                response TEXT NOT NULL,
+                PRIMARY KEY (namespace, query)
+            )
+            """)
 
     def normalize(self, text: str) -> str:
         return text.strip().lower()
 
-    def get(self, query: str):
+    def get(self, namespace: str, query: str) -> Optional[dict]:
         key = self.normalize(query)
 
-        cur = self.conn.execute("SELECT response FROM cache WHERE query=?", (key,))
-
-        row = cur.fetchone()
+        with self.lock:
+            row = self.conn.execute(
+                "SELECT response FROM llm_cache WHERE namespace=? AND query=?", (namespace, key)
+            ).fetchone()
 
         if row:
             return json.loads(row[0])
 
         return None
 
-    def set(self, query: str, response: dict):
+    def set(self, namespace: str, query: str, response: dict):
         key = self.normalize(query)
 
-        cur = self.conn.execute("SELECT response FROM cache WHERE query=?", (key,))
+        with self.lock, self.conn:
+            self.conn.execute(
+                "INSERT OR REPLACE INTO llm_cache(namespace, query, response) VALUES (?, ?, ?)",
+                (namespace, key, json.dumps(response)),
+            )
 
-        row = cur.fetchone()
-
-        if row:
-            existing = json.loads(row[0])
-            existing.update(response)
-            final = existing
-        else:
-            final = response
-
-        self.conn.execute(
-            "INSERT OR REPLACE INTO cache(query, response) VALUES (?, ?)",
-            (key, json.dumps(final)),
-        )
-
-        self.conn.commit()
-
-    def delete(self, query: str):
+    def delete(self, namespace: str, query: str):
         key = self.normalize(query)
-        with self.conn:
-            self.conn.execute("DELETE FROM cache WHERE query=?", (key,))
+
+        with self.lock, self.conn:
+            self.conn.execute("DELETE FROM llm_cache WHERE namespace=? AND query=?", (namespace, key))
 
     def wipe(self):
-        with self.conn:
-            self.conn.execute("DELETE FROM cache")
+        with self.lock, self.conn:
+            self.conn.execute("DELETE FROM llm_cache")
 
 
-Path("db").mkdir(parents=True, exist_ok=True)
-cache = LLMCache()
-
-
-if __name__ == "__main__":
-    cache.delete("what are my pending tasks?")
+cache = LLMCache(Config.LLM_CACHE_DB_PATH)

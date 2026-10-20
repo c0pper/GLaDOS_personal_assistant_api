@@ -11,3 +11,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Runtime cache database
+db/

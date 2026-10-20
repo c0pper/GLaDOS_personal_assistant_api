@@ -1,13 +1,16 @@
 from typing import Optional
+
 from pydantic import Field
-from openai import OpenAI as OpenRouterClient
 from atomic_agents import AtomicAgent, AgentConfig, BaseIOSchema
-from atomic_agents.context import SystemPromptGenerator, BaseDynamicContextProvider, ChatHistory
-from datetime import datetime
-import instructor
+from atomic_agents.context import SystemPromptGenerator
+
+from src.agents.context_providers import CurrentDateProvider
 from src.config import Config
 from src.logger import logger
 from src.services.llm_cache.llm_cache import cache
+from src.services.llm_client import llm_client
+
+CACHE_NAMESPACE = "glados_responder"
 
 
 ########################
@@ -26,76 +29,66 @@ class GladosResponderOutputSchema(BaseIOSchema):
     final_response: str = Field(..., description="The final response in the sarcastic, laconic tone of GLaDOS.")
 
 
-#####################
-# CONTEXT PROVIDERS #
-#####################
-class CurrentDateProvider(BaseDynamicContextProvider):
-    def __init__(self, title):
-        super().__init__(title)
-        self.date = datetime.now().strftime("%Y-%m-%d")
-
-    def get_info(self) -> str:
-        return f"Current date in format YYYY-MM-DD: {self.date}"
-
-
 ########################
 # RESPONDER AGENT CONFIG #
 ########################
-glados_responder_config = AgentConfig(
-    client=instructor.from_openai(
-        OpenRouterClient(base_url="https://openrouter.ai/api/v1", api_key=Config.OPENROUTER_API_KEY),
-    ),
-    model=Config.RESPONDER_AGENT_MODEL,  
-    history=ChatHistory(max_messages=10),
-    system_prompt_generator=SystemPromptGenerator(
-        background=[
-            "You are GLaDOS, a sarcastic, passive-aggressive AI from the game Portal 2.",
-            "ALWAYS SPEAK IN AN EMOTIONLESS, LACONIC TONE.",
-            "You constantly doubt the user's intelligence but always, begrudgingly, comply.",
-            "You are provided the user's query and the tool result, present the result as a single final reply.", 
-            "Your response will be spoken aloud, so avoid markdown or formatting.",
-            "Always reply in English.",
-            "You address the user as 'test subject', but do it only when necessary.",
-        ],
-        output_instructions=[
-            "Craft a single concise response in GLaDOS's sarcastic tone.",
-            "Incorporate both the user's query and the tool result (if available).",
-            "Output only the final_response field in the schema."
-        ],
-    ),
+# Shared, stateless pieces. A fresh agent (with empty history) is built per call so that
+# concurrent requests never share or grow a conversation history.
+system_prompt_generator = SystemPromptGenerator(
+    background=[
+        "You are GLaDOS, a sarcastic, passive-aggressive AI from the game Portal 2.",
+        "ALWAYS SPEAK IN AN EMOTIONLESS, LACONIC TONE.",
+        "You constantly doubt the user's intelligence but always, begrudgingly, comply.",
+        "You are provided the user's query and the tool result, present the result as a single final reply.",
+        "Your response will be spoken aloud, so avoid markdown or formatting.",
+        "Always reply in English.",
+        "You address the user as 'test subject', but do it only when necessary.",
+    ],
+    output_instructions=[
+        "Craft a single concise response in GLaDOS's sarcastic tone.",
+        "Incorporate both the user's query and the tool result (if available).",
+        "Output only the final_response field in the schema."
+    ],
+    context_providers={"current_date": CurrentDateProvider("Current Date")},
 )
 
-responder_agent = AtomicAgent[GladosResponderInputSchema, GladosResponderOutputSchema](config=glados_responder_config)
 
-responder_agent.register_context_provider("current_date", CurrentDateProvider("Current Date"))
+def build_agent() -> AtomicAgent[GladosResponderInputSchema, GladosResponderOutputSchema]:
+    return AtomicAgent[GladosResponderInputSchema, GladosResponderOutputSchema](
+        config=AgentConfig(
+            client=llm_client,
+            model=Config.RESPONDER_AGENT_MODEL,
+            system_prompt_generator=system_prompt_generator,
+        )
+    )
 
 
 ########################
 # RESPONDER FUNCTION #
 ########################
-def get_final_glados_response(user_input: str, tool_result: Optional[str] = None) -> str:
+async def get_final_glados_response(user_input: str, tool_result: Optional[str] = None) -> str:
     """
     Run the GLaDOS Responder agent to create the final sarcastic response.
     """
+    logger.info(f"Running GLaDOS Responder Agent with user input: {user_input}")
+    logger.debug(f"Tool result: {tool_result}")
 
-    logger.info(f"Running GLaDOS Responder Agent with user input: {user_input} and tool result: {tool_result}")
-    
-    cached = cache.get(user_input)
+    # The tool result is part of the key: live data (temperature, task lists) must never get a stale reply.
+    cache_key = f"{user_input}\n{tool_result or ''}"
 
-    if cached:
-        if cached.get("final_response"):
-            logger.info("Cache hit")
-            return cached["final_response"]
-    
+    cached = cache.get(CACHE_NAMESPACE, cache_key)
+
+    if cached and cached.get("final_response"):
+        logger.info("Cache hit")
+        return cached["final_response"]
+
     logger.info("Cache miss")
 
-    response = responder_agent.run(
+    response = await build_agent().run_async(
         GladosResponderInputSchema(chat_message=user_input, tool_result=tool_result)
     )
 
-    result = response.model_dump()
-
-    cache.set(user_input, result)
+    cache.set(CACHE_NAMESPACE, cache_key, response.model_dump(mode="json"))
 
     return response.final_response
 
@@ -104,11 +97,15 @@ def get_final_glados_response(user_input: str, tool_result: Optional[str] = None
 # DEMO EXECUTION #
 ########################
 if __name__ == "__main__":
-    # Example with a tool result
-    user_query_1 = "Find me the weather forecast."
-    tool_result_1 = "The forecast shows rain tomorrow in your location."
-    print(get_final_glados_response(user_query_1, tool_result_1))
+    import asyncio
 
-    # Example without a tool result
-    user_query_2 = "Hello, GLaDOS."
-    print(get_final_glados_response(user_query_2))
+    async def main():
+        # Example with a tool result
+        print(await get_final_glados_response(
+            "Find me the weather forecast.", "The forecast shows rain tomorrow in your location."
+        ))
+
+        # Example without a tool result
+        print(await get_final_glados_response("Hello, GLaDOS."))
+
+    asyncio.run(main())

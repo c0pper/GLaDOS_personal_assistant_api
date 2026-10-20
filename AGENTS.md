@@ -30,19 +30,18 @@ docker-compose up --build
 docker run -d -p 7000:8000 --env-file .env glados_api:0.1.4
 ```
 
-### Testing (no tests currently - recommended to add pytest)
+### Testing
+Tests never call real services: `tests/conftest.py` forces fake env vars and a temporary cache DB,
+and provides `fake_llm` (replaces `AtomicAgent.run_async`) and `fake_http` (mocks the Home Assistant/Vikunja clients).
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run a single test file
-pytest tests/test_orchestrator.py
+uv run pytest tests/test_orchestrator.py
 
 # Run a single test function
-pytest tests/test_orchestrator.py::test_get_tool_name
-
-# Run with coverage
-pytest --cov=src --cov-report=html
+uv run pytest tests/test_orchestrator.py::test_cache_hit_skips_llm
 ```
 
 ### Linting & Type Checking (recommended additions)
@@ -183,19 +182,28 @@ def invoke_intent(intent_name: str) -> Optional[str]:
 This project uses atomic-agents framework. Follow these patterns:
 
 1. **Define Input/Output schemas** using Pydantic + BaseIOSchema
-2. **Create context providers** inheriting from `BaseDynamicContextProvider`
-3. **Configure AgentConfig** with client, model, history, and system_prompt_generator
-4. **Instantiate AtomicAgent** with type hints: `AtomicAgent[InputSchema, OutputSchema]`
-5. **Register context providers** and hooks
-6. **Create wrapper functions** that call `agent.run()`
+2. **Create context providers** inheriting from `BaseDynamicContextProvider` (shared ones live in `src/agents/context_providers.py`)
+3. **Create one module-level `SystemPromptGenerator`** with its `context_providers`
+4. **Build a fresh `AtomicAgent` per call** with the shared async `llm_client` (`src/services/llm_client.py`).
+   Agents hold mutable history, so a module-level agent would be shared by concurrent requests.
+5. **Create async wrapper functions** that `await agent.run_async()`; never make blocking calls in endpoints
+6. **External HTTP calls** use the shared `httpx.AsyncClient`s in `src/services/http_clients.py` (keep-alive + timeouts)
+7. **Cache** with a per-agent namespace: `cache.get(CACHE_NAMESPACE, key)`; include any live data in the key
 
 ```python
-agent = AtomicAgent[OrchestratorInputSchema, OrchestratorOutputSchema](config=agent_config)
-agent.register_context_provider("current_date", CurrentDateProvider("Current Date"))
+system_prompt_generator = SystemPromptGenerator(
+    background=[...],
+    context_providers={"current_date": CurrentDateProvider("Current Date")},
+)
 
-def get_tool_name(user_input: str) -> str:
-    output = agent.run(OrchestratorInputSchema(chat_message=user_input))
-    return output.model_dump()["tool_name"]
+def build_agent() -> AtomicAgent[OrchestratorInputSchema, OrchestratorOutputSchema]:
+    return AtomicAgent[OrchestratorInputSchema, OrchestratorOutputSchema](
+        config=AgentConfig(client=llm_client, model=Config.ORCHESTRATOR_AGENT_MODEL,
+                           system_prompt_generator=system_prompt_generator)
+    )
+
+async def route_query(user_input: str) -> OrchestratorOutputSchema:
+    return await build_agent().run_async(OrchestratorInputSchema(chat_message=user_input))
 ```
 
 ### Logging
