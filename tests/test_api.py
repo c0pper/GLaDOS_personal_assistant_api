@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 
 import httpx
@@ -10,6 +11,7 @@ from src.agents.vikunja_agent import VikunjaOutputSchema
 from src.main import app
 from src.services.llm_cache.llm_cache import cache
 from tests.test_speech_to_text import STT_PATH, make_wav
+from tests.test_text_to_speech import TTS_PATH
 
 @pytest.fixture
 async def api():
@@ -144,30 +146,58 @@ async def test_concurrent_requests_do_not_block_each_other(api, pipeline):
 ################
 # /start_audio #
 ################
-async def test_audio_is_transcribed_then_answered(api, pipeline):
+async def test_audio_is_transcribed_answered_and_spoken(api, pipeline):
     fake_llm, fake_http = pipeline
     fake_http.on("POST", STT_PATH, httpx.Response(200, json={"text": "Turn on the mood lights", "result": "success"}))
+    fake_http.on("POST", TTS_PATH, httpx.Response(200, json=[]))
 
     response = await api.post("/api/start_audio", content=make_wav(), headers={"Content-Type": "audio/wav"})
 
-    assert response.json() == {"message": "GLaDOS: Turned on the mood lights", "transcript": "Turn on the mood lights"}
+    assert response.json() == {
+        "message": "GLaDOS: Turned on the mood lights",
+        "transcript": "Turn on the mood lights",
+        "spoken": True,
+    }
     assert fake_llm.calls[0].user_input.chat_message == "Turn on the mood lights"
+    assert json.loads(fake_http.requests_to(TTS_PATH)[0].content)["message"] == "GLaDOS: Turned on the mood lights"
+
+
+async def test_audio_reply_when_speaker_fails_still_has_text(api, pipeline):
+    _, fake_http = pipeline
+    fake_http.on("POST", STT_PATH, httpx.Response(200, json={"text": "Hello", "result": "success"}))
+    fake_http.on("POST", TTS_PATH, httpx.Response(500, text="piper down"))
+
+    response = await api.post("/api/start_audio", content=make_wav())
+
+    assert response.json() == {"message": "GLaDOS: None", "transcript": "Hello", "spoken": False}
 
 
 async def test_audio_transcription_error_skips_pipeline(api, pipeline):
     fake_llm, fake_http = pipeline
     fake_http.on("POST", STT_PATH, httpx.Response(200, json={"text": None, "result": "error"}))
+    fake_http.on("POST", TTS_PATH, httpx.Response(200, json=[]))
 
     response = await api.post("/api/start_audio", content=make_wav())
 
-    assert response.json() == {"message": "Sorry, I couldn't understand the recording.", "transcript": None}
+    assert response.json() == {
+        "message": "Sorry, I couldn't understand the recording.",
+        "transcript": None,
+        "spoken": True,
+    }
     assert fake_llm.calls == []
 
 
 async def test_empty_audio_body(api, pipeline):
+    _, fake_http = pipeline
+    fake_http.on("POST", TTS_PATH, httpx.Response(200, json=[]))
+
     response = await api.post("/api/start_audio", content=b"")
 
-    assert response.json() == {"message": "No audio received."}
+    assert response.json() == {
+        "message": "No audio received.",
+        "transcript": None,
+        "spoken": True,
+    }
 
 
 ###################

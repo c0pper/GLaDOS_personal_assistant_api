@@ -20,6 +20,9 @@ services:
       HOME_ASSISTANT_TOKEN: ${HOME_ASSISTANT_TOKEN}
       HOME_ASSISTANT_STT_ENTITY: stt.faster_whisper
       HOME_ASSISTANT_STT_LANGUAGE: en
+      HOME_ASSISTANT_TTS_MEDIA_PLAYER: media_player.minisgooglehome
+      HOME_ASSISTANT_TTS_ENTITY: tts.piper
+      HOME_ASSISTANT_TTS_VOICE: glados
 
     volumes:
       - ./db:/app/db

@@ -9,6 +9,7 @@ from src.agents.glados_responder_agent import get_final_glados_response
 from src.agents.vikunja_agent import run_vikunja_agent
 from src.logger import logger
 from src.services.speech_to_text import transcribe
+from src.services.text_to_speech import speak
 
 router = APIRouter()
 
@@ -73,18 +74,21 @@ async def run_pipeline(message: str) -> dict:
     return {"message": final_response}
 
 # The request body is the raw recording (any format ffmpeg decodes, e.g. Tasker's m4a), not a multipart form.
+# Every reply, errors included, is also spoken on the Home Assistant speaker; `spoken` says whether that worked.
 @router.post("/start_audio")
 async def start_audio(request: Request):
     audio = await request.body()
     if not audio:
-        return {"message": "No audio received."}
+        response = {"message": "No audio received.", "transcript": None}
+    else:
+        transcript = await transcribe(audio)
+        if transcript.get("error"):
+            response = {"message": transcript["error"], "transcript": None}
+        else:
+            start_response = await start(StartRequest(message=transcript["text"]))
+            response = {**start_response, "transcript": transcript["text"]}
 
-    transcript = await transcribe(audio)
-    if transcript.get("error"):
-        return {"message": transcript["error"], "transcript": None}
-
-    start_response = await start(StartRequest(message=transcript["text"]))
-    return {**start_response, "transcript": transcript["text"]}
+    return {**response, "spoken": await speak(response["message"])}
 
 # rhasspy endpoint accepts any json
 @router.post("/start_rhasspy")

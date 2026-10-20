@@ -19,7 +19,7 @@ class Config:
 
     HA_MCP_URL: str = os.environ["HA_MCP_URL"]
     HOME_ASSISTANT_AGENT_MODEL: str = "deepseek/deepseek-v4.1-flash"
-    HOME_ASSISTANT_MAX_TOOL_ROUNDS: int = 8
+    HOME_ASSISTANT_MAX_TOOL_ROUNDS: int = 20
     HOME_ASSISTANT_TIMEOUT_SECONDS: float = 90.0
     # Only everyday control/read tools: the MCP server also exposes admin ones (restart, backups, deletions),
     # and every exposed tool definition is sent with each LLM call.
@@ -42,6 +42,12 @@ class Config:
     HOME_ASSISTANT_STT_ENTITY: str = os.environ.get("HOME_ASSISTANT_STT_ENTITY", "stt.faster_whisper")
     HOME_ASSISTANT_STT_LANGUAGE: str = os.environ.get("HOME_ASSISTANT_STT_LANGUAGE", "en")
     STT_TIMEOUT_SECONDS: float = 60.0
+    # Replies to voice requests are spoken on this speaker with this Home Assistant TTS entity and voice.
+    HOME_ASSISTANT_TTS_MEDIA_PLAYER: str = os.environ.get(
+        "HOME_ASSISTANT_TTS_MEDIA_PLAYER", "media_player.minisgooglehome"
+    )
+    HOME_ASSISTANT_TTS_ENTITY: str = os.environ.get("HOME_ASSISTANT_TTS_ENTITY", "tts.piper")
+    HOME_ASSISTANT_TTS_VOICE: str = os.environ.get("HOME_ASSISTANT_TTS_VOICE", "glados")
 
     # OpenRouter retries on these, in order, when an agent's model is rate-limited or down.
     LLM_FALLBACK_MODELS: tuple = ("openai/gpt-4o-mini", "deepseek/deepseek-v4.1-flash")
