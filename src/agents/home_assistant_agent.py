@@ -10,12 +10,14 @@ from mcp.types import CallToolResult, TextContent, Tool
 
 from src.config import Config
 from src.logger import logger
-from src.services.llm_client import openrouter_client
+from src.services.llm_client import fallback_routing, openrouter_client
 
 
 SYSTEM_PROMPT = (
     "You are an assistant that controls and reads a Home Assistant smart home through the available tools. "
     "Find the right entities with the tools (never guess entity ids), act on them, and verify when useful. "
+    "The request may come from speech recognition and contain misheard words: if a name matches nothing after "
+    "a couple of searches, stop and say what you could not find instead of searching further. "
     "Answer in a short plain-text sentence stating the outcome or the requested values; "
     "another assistant will rephrase your answer for the user."
 )
@@ -80,7 +82,10 @@ async def run_tool_loop(user_query: str) -> str:
 
         for _ in range(Config.HOME_ASSISTANT_MAX_TOOL_ROUNDS):
             completion = await openrouter_client.chat.completions.create(
-                model=Config.HOME_ASSISTANT_AGENT_MODEL, messages=messages, tools=tools
+                model=Config.HOME_ASSISTANT_AGENT_MODEL,
+                messages=messages,
+                tools=tools,
+                extra_body=fallback_routing(Config.HOME_ASSISTANT_AGENT_MODEL),
             )
             message = completion.choices[0].message
 

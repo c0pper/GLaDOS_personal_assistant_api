@@ -9,6 +9,7 @@ from src.agents.orchestrator_agent import OrchestratorOutputSchema
 from src.agents.vikunja_agent import VikunjaOutputSchema
 from src.main import app
 from src.services.llm_cache.llm_cache import cache
+from tests.test_speech_to_text import STT_PATH, make_wav
 
 @pytest.fixture
 async def api():
@@ -65,6 +66,20 @@ async def test_home_assistant_error_is_returned(api, pipeline, fake_ha):
     response = await api.post("/api/start", json={"message": "Turn on the mood lights"})
 
     assert response.json() == {"message": "Home Assistant agent failed: RuntimeError('boom')"}
+
+
+async def test_llm_failure_returns_message_instead_of_500(api, pipeline):
+    fake_llm, _ = pipeline
+
+    def rate_limited(_):
+        raise RuntimeError("429 rate-limited upstream")
+
+    fake_llm.on(OrchestratorOutputSchema, rate_limited)
+
+    response = await api.post("/api/start", json={"message": "Hello GLaDOS"})
+
+    assert response.status_code == 200
+    assert response.json() == {"message": "Sorry, my brain is temporarily unavailable. Try again in a moment."}
 
 
 async def test_vikunja_flow(api, pipeline):
@@ -124,6 +139,35 @@ async def test_concurrent_requests_do_not_block_each_other(api, pipeline):
     assert all(response.status_code == 200 for response in responses)
     # Each request makes 2-3 LLM calls; run one after another this would take ~7 * delay.
     assert elapsed < 4 * delay
+
+
+################
+# /start_audio #
+################
+async def test_audio_is_transcribed_then_answered(api, pipeline):
+    fake_llm, fake_http = pipeline
+    fake_http.on("POST", STT_PATH, httpx.Response(200, json={"text": "Turn on the mood lights", "result": "success"}))
+
+    response = await api.post("/api/start_audio", content=make_wav(), headers={"Content-Type": "audio/wav"})
+
+    assert response.json() == {"message": "GLaDOS: Turned on the mood lights", "transcript": "Turn on the mood lights"}
+    assert fake_llm.calls[0].user_input.chat_message == "Turn on the mood lights"
+
+
+async def test_audio_transcription_error_skips_pipeline(api, pipeline):
+    fake_llm, fake_http = pipeline
+    fake_http.on("POST", STT_PATH, httpx.Response(200, json={"text": None, "result": "error"}))
+
+    response = await api.post("/api/start_audio", content=make_wav())
+
+    assert response.json() == {"message": "Sorry, I couldn't understand the recording.", "transcript": None}
+    assert fake_llm.calls == []
+
+
+async def test_empty_audio_body(api, pipeline):
+    response = await api.post("/api/start_audio", content=b"")
+
+    assert response.json() == {"message": "No audio received."}
 
 
 ###################

@@ -18,6 +18,14 @@ def on_completion_error(error, **kwargs):
     logger.error(f"LLM API error: {type(error).__name__}: {error}")
 
 
+###########
+# ROUTING #
+###########
+def fallback_routing(model: str) -> dict:
+    """OpenRouter request body extension: try `model`, then the fallbacks if it is rate-limited or down."""
+    return {"models": [model, *(fallback for fallback in Config.LLM_FALLBACK_MODELS if fallback != model)]}
+
+
 ##########
 # CLIENT #
 ##########

@@ -8,7 +8,7 @@ from src.agents.context_providers import CurrentDateProvider
 from src.config import Config
 from src.logger import logger
 from src.services.llm_cache.llm_cache import cache
-from src.services.llm_client import llm_client
+from src.services.llm_client import fallback_routing, llm_client
 
 CACHE_NAMESPACE = "glados_responder"
 
@@ -59,6 +59,7 @@ def build_agent() -> AtomicAgent[GladosResponderInputSchema, GladosResponderOutp
             client=llm_client,
             model=Config.RESPONDER_AGENT_MODEL,
             system_prompt_generator=system_prompt_generator,
+            model_api_parameters={"extra_body": fallback_routing(Config.RESPONDER_AGENT_MODEL)},
         )
     )
 
@@ -89,6 +90,8 @@ async def get_final_glados_response(user_input: str, tool_result: Optional[str] 
     )
 
     cache.set(CACHE_NAMESPACE, cache_key, response.model_dump(mode="json"))
+    
+    logger.info(f"GLaDOS Responder Agent final response: {response.final_response}")
 
     return response.final_response
 

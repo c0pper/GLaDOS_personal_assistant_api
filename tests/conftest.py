@@ -14,6 +14,8 @@ os.environ.update({
     "VIKUNJA_BASE_URL": "http://vikunja.test/api/v1",
     "VIKUNJA_TOKEN": "vikunja-token",
     "HA_MCP_URL": "http://ha-mcp.test/mcp",
+    "HOME_ASSISTANT_BASE_URL": "http://ha.test",
+    "HOME_ASSISTANT_TOKEN": "ha-token",
     "LLM_CACHE_DB_PATH": os.path.join(tempfile.mkdtemp(prefix="glados-tests-"), "llm_cache.db"),
 })
 
@@ -24,6 +26,7 @@ from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 from openai.types.chat import ChatCompletion
 
 from src.agents import home_assistant_agent, vikunja_agent
+from src.services import speech_to_text
 from src.config import Config
 from src.services.llm_cache.llm_cache import cache
 
@@ -110,7 +113,7 @@ async def fake_http(monkeypatch) -> FakeHTTP:
     transport = httpx.MockTransport(http.handle)
 
     clients = []
-    for module, attribute in [(vikunja_agent, "vikunja_client")]:
+    for module, attribute in [(vikunja_agent, "vikunja_client"), (speech_to_text, "home_assistant_client")]:
         original: httpx.AsyncClient = getattr(module, attribute)
         client = httpx.AsyncClient(
             base_url=original.base_url, headers=original.headers, timeout=original.timeout, transport=transport

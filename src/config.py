@@ -36,6 +36,15 @@ class Config:
         "ha_get_todo",
     )
 
+    # Speech-to-text goes through Home Assistant's STT API (the language must be one the entity supports).
+    HOME_ASSISTANT_BASE_URL: str = os.environ["HOME_ASSISTANT_BASE_URL"]
+    HOME_ASSISTANT_TOKEN: str = os.environ["HOME_ASSISTANT_TOKEN"]
+    HOME_ASSISTANT_STT_ENTITY: str = os.environ.get("HOME_ASSISTANT_STT_ENTITY", "stt.faster_whisper")
+    HOME_ASSISTANT_STT_LANGUAGE: str = os.environ.get("HOME_ASSISTANT_STT_LANGUAGE", "en")
+    STT_TIMEOUT_SECONDS: float = 60.0
+
+    # OpenRouter retries on these, in order, when an agent's model is rate-limited or down.
+    LLM_FALLBACK_MODELS: tuple = ("openai/gpt-4o-mini", "deepseek/deepseek-v4.1-flash")
     LLM_TIMEOUT_SECONDS: float = 30.0
     HTTP_TIMEOUT_SECONDS: float = 10.0
     VIKUNJA_PROJECTS_TTL_SECONDS: float = 600.0

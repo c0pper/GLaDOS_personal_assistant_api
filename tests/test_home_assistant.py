@@ -37,6 +37,7 @@ async def test_only_allowed_tools_are_offered(fake_ha):
     offered = {tool["function"]["name"] for tool in fake_ha.llm_requests[0]["tools"]}
     assert offered == set(Config.HOME_ASSISTANT_MCP_TOOLS)
     assert fake_ha.llm_requests[0]["model"] == Config.HOME_ASSISTANT_AGENT_MODEL
+    assert fake_ha.llm_requests[0]["extra_body"]["models"][0] == Config.HOME_ASSISTANT_AGENT_MODEL
 
 
 async def test_disallowed_tool_is_refused(fake_ha):

@@ -8,7 +8,7 @@ from src.agents.context_providers import CurrentDateProvider
 from src.config import Config
 from src.logger import logger
 from src.services.llm_cache.llm_cache import cache
-from src.services.llm_client import llm_client
+from src.services.llm_client import fallback_routing, llm_client
 
 CACHE_NAMESPACE = "orchestrator"
 
@@ -65,6 +65,7 @@ def build_agent() -> AtomicAgent[OrchestratorInputSchema, OrchestratorOutputSche
             client=llm_client,
             model=Config.ORCHESTRATOR_AGENT_MODEL,
             system_prompt_generator=system_prompt_generator,
+            model_api_parameters={"extra_body": fallback_routing(Config.ORCHESTRATOR_AGENT_MODEL)},
         )
     )
 

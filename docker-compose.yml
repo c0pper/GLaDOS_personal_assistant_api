@@ -16,6 +16,10 @@ services:
       VIKUNJA_BASE_URL: http://192.168.1.4:3456/api/v1
       VIKUNJA_TOKEN: ${VIKUNJA_TOKEN}
       HA_MCP_URL: ${HA_MCP_URL}
+      HOME_ASSISTANT_BASE_URL: http://192.168.1.144:8123
+      HOME_ASSISTANT_TOKEN: ${HOME_ASSISTANT_TOKEN}
+      HOME_ASSISTANT_STT_ENTITY: stt.faster_whisper
+      HOME_ASSISTANT_STT_LANGUAGE: en
 
     volumes:
       - ./db:/app/db
