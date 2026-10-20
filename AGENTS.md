@@ -280,6 +280,6 @@ Required environment variables (see `.env.example` or docker-compose.yml):
 - `HA_MCP_URL` - Home Assistant MCP server URL (streamable HTTP; the path contains a secret, keep it in `.env`)
 - `HOME_ASSISTANT_BASE_URL` / `HOME_ASSISTANT_TOKEN` - Home Assistant REST API, used for speech-to-text (`/api/start_audio`)
 - `HOME_ASSISTANT_STT_ENTITY` / `HOME_ASSISTANT_STT_LANGUAGE` - STT provider and a language it supports (optional, default `stt.faster_whisper` / `en`)
-- `HOME_ASSISTANT_TTS_MEDIA_PLAYER` / `HOME_ASSISTANT_TTS_ENTITY` / `HOME_ASSISTANT_TTS_VOICE` - speaker, TTS entity and voice for spoken replies to `/api/start_audio` (optional, default `media_player.minisgooglehome` / `tts.piper` / `glados`)
+- `HOME_ASSISTANT_TTS_MEDIA_PLAYER` / `HOME_ASSISTANT_TTS_ENTITY` / `HOME_ASSISTANT_TTS_VOICE` - Music Assistant player (replies are announcements, so music resumes), TTS entity and voice for spoken replies to `/api/start_audio` (optional, default `media_player.minisgooglehome_2` / `tts.piper` / `glados`)
 - `VIKUNJA_BASE_URL` - Vikunja API URL
 - `VIKUNJA_TOKEN` - Vikunja API token

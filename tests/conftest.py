@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from types import SimpleNamespace
 import tempfile
+import asyncio
 import json
 import os
 
@@ -124,6 +125,8 @@ async def fake_http(monkeypatch) -> FakeHTTP:
 
     yield http
 
+    # Background announcements still use the fake clients: let them finish before closing.
+    await asyncio.gather(*text_to_speech._announcements)
     for client in clients:
         await client.aclose()
 

@@ -19,7 +19,10 @@ SYSTEM_PROMPT = (
     "The request may come from speech recognition and contain misheard words: if a name matches nothing after "
     "a couple of searches, stop and say what you could not find instead of searching further. "
     "Answer in a short plain-text sentence stating the outcome or the requested values; "
-    "another assistant will rephrase your answer for the user."
+    "another assistant will rephrase your answer for the user. "
+    "Projector related: use switch.projector_power. "
+    "For music or radio requests, use strictly musicassistant. "
+    "For putting on things on tv, use Stremio: play on Sony TV script with the relevant variables."
 )
 
 # Tool results can be huge (search dumps, history); cap what goes back into the prompt.

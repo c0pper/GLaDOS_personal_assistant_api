@@ -11,7 +11,7 @@ from src.agents.vikunja_agent import VikunjaOutputSchema
 from src.main import app
 from src.services.llm_cache.llm_cache import cache
 from tests.test_speech_to_text import STT_PATH, make_wav
-from tests.test_text_to_speech import TTS_PATH
+from tests.test_text_to_speech import TTS_PATH, fake_speaker
 
 @pytest.fixture
 async def api():
@@ -149,7 +149,7 @@ async def test_concurrent_requests_do_not_block_each_other(api, pipeline):
 async def test_audio_is_transcribed_answered_and_spoken(api, pipeline):
     fake_llm, fake_http = pipeline
     fake_http.on("POST", STT_PATH, httpx.Response(200, json={"text": "Turn on the mood lights", "result": "success"}))
-    fake_http.on("POST", TTS_PATH, httpx.Response(200, json=[]))
+    fake_speaker(fake_http)
 
     response = await api.post("/api/start_audio", content=make_wav(), headers={"Content-Type": "audio/wav"})
 
@@ -175,7 +175,7 @@ async def test_audio_reply_when_speaker_fails_still_has_text(api, pipeline):
 async def test_audio_transcription_error_skips_pipeline(api, pipeline):
     fake_llm, fake_http = pipeline
     fake_http.on("POST", STT_PATH, httpx.Response(200, json={"text": None, "result": "error"}))
-    fake_http.on("POST", TTS_PATH, httpx.Response(200, json=[]))
+    fake_speaker(fake_http)
 
     response = await api.post("/api/start_audio", content=make_wav())
 
@@ -189,7 +189,7 @@ async def test_audio_transcription_error_skips_pipeline(api, pipeline):
 
 async def test_empty_audio_body(api, pipeline):
     _, fake_http = pipeline
-    fake_http.on("POST", TTS_PATH, httpx.Response(200, json=[]))
+    fake_speaker(fake_http)
 
     response = await api.post("/api/start_audio", content=b"")
 

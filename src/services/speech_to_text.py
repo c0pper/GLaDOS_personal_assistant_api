@@ -1,3 +1,5 @@
+from datetime import datetime
+from pathlib import Path
 import asyncio
 import io
 
@@ -14,6 +16,7 @@ STT_METADATA = (
     f"format=wav; codec=pcm; sample_rate={SAMPLE_RATE}; bit_rate=16; channel=1; "
     f"language={Config.HOME_ASSISTANT_STT_LANGUAGE}"
 )
+FAILED_UPLOADS_DIR = Path(".logs/failed_audio")
 
 
 ##############
@@ -30,11 +33,22 @@ def to_pcm(audio: bytes) -> bytes:
             pcm.extend(bytes(frame.planes[0])[: frame.samples * 2])
 
     with av.open(io.BytesIO(audio)) as container:
+        # A recording stopped right after it started has a header but a track with no codec and no samples.
+        if not container.streams.audio or container.streams.audio[0].codec_context is None:
+            return b""
+
         for frame in container.decode(audio=0):
             append(resampler.resample(frame))
     append(resampler.resample(None))
 
     return bytes(pcm)
+
+
+def save_failed_upload(audio: bytes) -> str:
+    FAILED_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    path = FAILED_UPLOADS_DIR / f"{datetime.now():%Y%m%d_%H%M%S_%f}.bin"
+    path.write_bytes(audio)
+    return str(path)
 
 
 #################
@@ -49,7 +63,9 @@ async def transcribe(audio: bytes) -> dict:
         # Decoding is CPU-bound: keep it off the event loop.
         pcm = await asyncio.to_thread(to_pcm, audio)
     except (av.FFmpegError, ValueError) as e:
-        logger.error(f"Failed to decode audio: {e}")
+        # Keep the upload so the client's recording settings can be diagnosed.
+        saved = await asyncio.to_thread(save_failed_upload, audio)
+        logger.error(f"Failed to decode audio ({len(audio)} bytes, starts {audio[:16].hex(' ')}, saved to {saved}): {e}")
         return {"error": f"Failed to decode audio: {e}"}
 
     if not pcm:

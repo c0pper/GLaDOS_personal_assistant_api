@@ -78,6 +78,7 @@ async def run_pipeline(message: str) -> dict:
 @router.post("/start_audio")
 async def start_audio(request: Request):
     audio = await request.body()
+    logger.info(f"Received {len(audio)} bytes of audio ({request.headers.get('content-type')})")
     if not audio:
         response = {"message": "No audio received.", "transcript": None}
     else:
