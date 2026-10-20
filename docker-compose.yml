@@ -15,8 +15,7 @@ services:
       SEARXNG_URL: http://192.168.1.4:8899
       VIKUNJA_BASE_URL: http://192.168.1.4:3456/api/v1
       VIKUNJA_TOKEN: ${VIKUNJA_TOKEN}
-      HOME_ASSISTANT_BASE_URL: http://192.168.1.144:8123
-      HOME_ASSISTANT_TOKEN: ${HOME_ASSISTANT_TOKEN}
+      HA_MCP_URL: ${HA_MCP_URL}
 
     volumes:
       - ./db:/app/db

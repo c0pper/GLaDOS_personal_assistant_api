@@ -277,7 +277,6 @@ src/
 Required environment variables (see `.env.example` or docker-compose.yml):
 - `OPENROUTER_API_KEY` - API key for LLM calls
 - `SEARXNG_URL` - SearXNG instance URL
-- `HOME_ASSISTANT_BASE_URL` - Home Assistant URL
-- `HOME_ASSISTANT_TOKEN` - Home Assistant token
+- `HA_MCP_URL` - Home Assistant MCP server URL (streamable HTTP; the path contains a secret, keep it in `.env`)
 - `VIKUNJA_BASE_URL` - Vikunja API URL
 - `VIKUNJA_TOKEN` - Vikunja API token

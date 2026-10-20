@@ -36,12 +36,11 @@ async def start(request: StartRequest):
     route = await route_query(request.message)
 
     if route.tool_name == "Home Assistant Tool":
-        intent_name = route.home_assistant_intent.value if route.home_assistant_intent else None
-        result = await run_home_assistant_agent(request.message, intent_name)
+        result = await run_home_assistant_agent(request.message)
         if result.get("error"):
             return {"message": result["error"]}
 
-        tool_result = result.get("speech", {}).get("plain", {}).get("speech")
+        tool_result = result["response"]
 
     elif route.tool_name == "Vikunja Tool":
         tool_result = await run_vikunja_agent(request.message)

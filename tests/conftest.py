@@ -1,6 +1,9 @@
 from typing import Any, Callable, Dict, List
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from types import SimpleNamespace
 import tempfile
+import json
 import os
 
 # Must run before any `src` import: Config reads the environment at import time.
@@ -10,16 +13,18 @@ os.environ.update({
     "SEARXNG_URL": "http://searxng.test",
     "VIKUNJA_BASE_URL": "http://vikunja.test/api/v1",
     "VIKUNJA_TOKEN": "vikunja-token",
-    "HOME_ASSISTANT_BASE_URL": "http://ha.test",
-    "HOME_ASSISTANT_TOKEN": "ha-token",
+    "HA_MCP_URL": "http://ha-mcp.test/mcp",
     "LLM_CACHE_DB_PATH": os.path.join(tempfile.mkdtemp(prefix="glados-tests-"), "llm_cache.db"),
 })
 
 import pytest
 import httpx
 from atomic_agents import AtomicAgent, BaseIOSchema
+from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
+from openai.types.chat import ChatCompletion
 
 from src.agents import home_assistant_agent, vikunja_agent
+from src.config import Config
 from src.services.llm_cache.llm_cache import cache
 
 
@@ -105,7 +110,7 @@ async def fake_http(monkeypatch) -> FakeHTTP:
     transport = httpx.MockTransport(http.handle)
 
     clients = []
-    for module, attribute in [(home_assistant_agent, "home_assistant_client"), (vikunja_agent, "vikunja_client")]:
+    for module, attribute in [(vikunja_agent, "vikunja_client")]:
         original: httpx.AsyncClient = getattr(module, attribute)
         client = httpx.AsyncClient(
             base_url=original.base_url, headers=original.headers, timeout=original.timeout, transport=transport
@@ -117,6 +122,65 @@ async def fake_http(monkeypatch) -> FakeHTTP:
 
     for client in clients:
         await client.aclose()
+
+
+###################
+# FAKE HA MCP LOOP #
+###################
+class FakeHomeAssistant:
+    """
+    Replaces the HA MCP session and the tool-calling LLM.
+    `replies` are scripted LLM turns: a string is a final answer, a list of (tool, arguments) is a tool-call turn.
+    The last reply repeats once the others are used up.
+    """
+
+    def __init__(self):
+        self.tools = [Tool(name=name, inputSchema={"type": "object"}) for name in Config.HOME_ASSISTANT_MCP_TOOLS]
+        self.tools.append(Tool(name="ha_restart", inputSchema={"type": "object"}))
+        self.tool_results: Dict[str, str] = {}
+        self.replies: List[Any] = ["Done."]
+        self.tool_calls: List[tuple] = []
+        self.llm_requests: List[dict] = []
+
+    async def list_tools(self) -> ListToolsResult:
+        return ListToolsResult(tools=self.tools)
+
+    async def call_tool(self, name: str, arguments: dict) -> CallToolResult:
+        self.tool_calls.append((name, arguments))
+        return CallToolResult(content=[TextContent(type="text", text=self.tool_results.get(name, "ok"))])
+
+    async def create(self, **request) -> ChatCompletion:
+        self.llm_requests.append({**request, "messages": list(request["messages"])})
+        reply = self.replies.pop(0) if len(self.replies) > 1 else self.replies[0]
+        if isinstance(reply, str):
+            message = {"role": "assistant", "content": reply}
+        else:
+            message = {"role": "assistant", "content": None, "tool_calls": [
+                {"id": f"call-{i}", "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}
+                for i, (name, args) in enumerate(reply)
+            ]}
+        return ChatCompletion.model_validate({
+            "id": "x", "object": "chat.completion", "created": 0, "model": request["model"],
+            "choices": [{"index": 0, "finish_reason": "stop", "message": message}],
+        })
+
+
+@pytest.fixture
+def fake_ha(monkeypatch) -> FakeHomeAssistant:
+    ha = FakeHomeAssistant()
+
+    @asynccontextmanager
+    async def open_mcp_session():
+        yield ha
+
+    # Looked up through `ha.create` at call time so tests can swap it.
+    async def create(**request):
+        return await ha.create(**request)
+
+    monkeypatch.setattr(home_assistant_agent, "open_mcp_session", open_mcp_session)
+    monkeypatch.setattr(home_assistant_agent, "openrouter_client",
+                        SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create))))
+    return ha
 
 
 ##################

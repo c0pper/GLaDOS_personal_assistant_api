@@ -1,11 +1,10 @@
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import Field, ValidationError
 from atomic_agents import AtomicAgent, AgentConfig, BaseIOSchema
 from atomic_agents.context import SystemPromptGenerator
 
 from src.agents.context_providers import CurrentDateProvider
-from src.agents.home_assistant_agent import IntentName, AvailableIntentsProvider
 from src.config import Config
 from src.logger import logger
 from src.services.llm_cache.llm_cache import cache
@@ -26,7 +25,7 @@ class OrchestratorInputSchema(BaseIOSchema):
 class OrchestratorOutputSchema(BaseIOSchema):
     """
     Output schema for the GLaDOS Agent.
-    Contains the tool to be used and, for Home Assistant queries, the intent to invoke.
+    Contains the tool to be used.
     """
     tool_name: Literal['Home Assistant Tool', 'SearXNG Tool', 'Vikunja Tool', 'No Tool'] = Field(
         ...,
@@ -34,11 +33,6 @@ class OrchestratorOutputSchema(BaseIOSchema):
                     "Must be one of the following: 'Home Assistant Tool', 'SearXNG Tool', "
                     "or 'Vikunja Tool'. If the query is a simple conversational message and "
                     "does not require any tool to be used, select 'No Tool'."
-    )
-    home_assistant_intent: Optional[IntentName] = Field(
-        None,
-        description="Only when tool_name is 'Home Assistant Tool': the available intent that matches the query. "
-                    "Leave null for every other tool."
     )
 
 
@@ -59,13 +53,9 @@ system_prompt_generator = SystemPromptGenerator(
     ],
     output_instructions=[
         "Analyze the input and select the most relevant tool or 'No Tool' if none apply.",
-        "If the tool is 'Home Assistant Tool', also select exactly one intent from the available intents.",
         "Format output using the defined schema."
     ],
-    context_providers={
-        "current_date": CurrentDateProvider("Current Date"),
-        "available_intents": AvailableIntentsProvider("Available Home Assistant Intents"),
-    },
+    context_providers={"current_date": CurrentDateProvider("Current Date")},
 )
 
 
@@ -81,7 +71,7 @@ def build_agent() -> AtomicAgent[OrchestratorInputSchema, OrchestratorOutputSche
 
 async def route_query(user_input: str) -> OrchestratorOutputSchema:
     """
-    Classify the user message: returns the tool to use and, for Home Assistant, the intent.
+    Classify the user message: returns the tool to use.
     """
     logger.info(f"User query: '{user_input}'")
 

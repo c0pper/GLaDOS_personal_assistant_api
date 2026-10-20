@@ -1,163 +1,124 @@
-from enum import Enum
-from typing import Optional
+from contextlib import asynccontextmanager
+from datetime import datetime
+from typing import Any, AsyncIterator, Dict, List
+import asyncio
+import json
 
-from pydantic import Field
-from atomic_agents import AtomicAgent, AgentConfig, BaseIOSchema
-from atomic_agents.context import SystemPromptGenerator, BaseDynamicContextProvider
-import httpx
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+from mcp.types import CallToolResult, TextContent, Tool
 
 from src.config import Config
 from src.logger import logger
-from src.services.http_clients import home_assistant_client
-from src.services.llm_cache.llm_cache import cache
-from src.services.llm_client import llm_client
-
-CACHE_NAMESPACE = "home_assistant_intent"
+from src.services.llm_client import openrouter_client
 
 
-##########################
-# CENTRAL INTENTS CONFIG #
-##########################
-class IntentName(str, Enum):
-    GetTemperature = "GetTemperature"
-    GetStateMother = "GetStateMother"
-    GetStateFather = "GetStateFather"
-    TurnOnCeilingLights = "TurnOnCeilingLights"
-    TurnOffCeilingLights = "TurnOffCeilingLights"
-    TurnOnMoodLights = "TurnOnMoodLights"
-    TurnOffMoodLights = "TurnOffMoodLights"
-    TurnOnAllBedroomLights = "TurnOnAllBedroomLights"
-    TurnOffAllBedroomLights = "TurnOffAllBedroomLights"
-    TurnOnKeyboardStrip = "TurnOnKeyboardStrip"
-    TurnOffKeyboardStrip = "TurnOffKeyboardStrip"
-
-
-########################
-# INPUT/OUTPUT SCHEMAS #
-########################
-class HomeAssistantInputSchema(BaseIOSchema):
-    """Input schema for Home Assistant Agent."""
-    user_query: str = Field(..., description="The user's home automation query to be processed.")
-
-
-class HomeAssistantOutputSchema(BaseIOSchema):
-    """Output schema for Home Assistant Agent."""
-    intent_name: IntentName = Field(
-        ..., description="The intent name that matches the user query."
-    )
-
-
-#####################
-# CONTEXT PROVIDERS #
-#####################
-class AvailableIntentsProvider(BaseDynamicContextProvider):
-    def __init__(self, title):
-        super().__init__(title)
-        self.intents = [intent.value for intent in IntentName]
-
-    def get_info(self) -> str:
-        return "Available Intents:\n" + "\n".join(self.intents)
-
-
-######################
-# HOME AGENT CONFIG #
-######################
-# Shared, stateless pieces. A fresh agent (with empty history) is built per call so that
-# concurrent requests never share or grow a conversation history.
-system_prompt_generator = SystemPromptGenerator(
-    background=[
-        "You are a Home Assistant agent.",
-        "Your primary role is to choose the right intent name among those available based on the user query.",
-    ],
-    output_instructions=[
-        "Select exactly one intent name from the available intents.",
-        "Format output according to schema."
-    ],
-    context_providers={"available_intents": AvailableIntentsProvider("Available Intents")},
+SYSTEM_PROMPT = (
+    "You are an assistant that controls and reads a Home Assistant smart home through the available tools. "
+    "Find the right entities with the tools (never guess entity ids), act on them, and verify when useful. "
+    "Answer in a short plain-text sentence stating the outcome or the requested values; "
+    "another assistant will rephrase your answer for the user."
 )
 
-
-def build_agent() -> AtomicAgent[HomeAssistantInputSchema, HomeAssistantOutputSchema]:
-    return AtomicAgent[HomeAssistantInputSchema, HomeAssistantOutputSchema](
-        config=AgentConfig(
-            client=llm_client,
-            model=Config.HOME_ASSISTANT_AGENT_MODEL,
-            system_prompt_generator=system_prompt_generator,
-        )
-    )
+# Tool results can be huge (search dumps, history); cap what goes back into the prompt.
+MAX_TOOL_RESULT_CHARS = 8000
 
 
-#########################
-# HOME ASSISTANT METHODS #
-#########################
-async def invoke_intent(intent_name: str) -> dict:
-    """
-    Call Home Assistant's intent API with the given intent.
-    """
+#######
+# MCP #
+#######
+@asynccontextmanager
+async def open_mcp_session() -> AsyncIterator[ClientSession]:
+    async with streamable_http_client(Config.HA_MCP_URL) as (read_stream, write_stream, _):
+        async with ClientSession(read_stream, write_stream) as session:
+            await session.initialize()
+            yield session
+
+
+def to_openai_tool(tool: Tool) -> Dict[str, Any]:
+    return {
+        "type": "function",
+        "function": {"name": tool.name, "description": tool.description or "", "parameters": tool.inputSchema},
+    }
+
+
+def tool_result_to_text(result: CallToolResult) -> str:
+    text = "\n".join(block.text for block in result.content if isinstance(block, TextContent))
+    if result.isError:
+        text = f"Tool error: {text}"
+    if len(text) > MAX_TOOL_RESULT_CHARS:
+        text = text[:MAX_TOOL_RESULT_CHARS] + "\n[truncated]"
+    return text
+
+
+async def call_tool(session: ClientSession, name: str, raw_arguments: str) -> str:
+    # The model only sees allowed tools, but never trust the name it sends back.
+    if name not in Config.HOME_ASSISTANT_MCP_TOOLS:
+        return f"Tool error: '{name}' is not available."
+
     try:
-        response = await home_assistant_client.post("/api/intent/handle", json={"name": intent_name})
-    except httpx.HTTPError as e:
-        logger.error(f"Failed to invoke intent: {e}")
-        return {"error": f"Failed to invoke intent: {e}"}
+        arguments = json.loads(raw_arguments or "{}")
+    except json.JSONDecodeError as e:
+        return f"Tool error: invalid JSON arguments: {e}"
 
-    if response.status_code in (200, 201):
-        result = response.json()
-        logger.info(f"Intent invoked successfully: {result}")
-        return result
-
-    logger.error(f"Failed to invoke intent: {response.status_code} - {response.text}")
-    return {"error": f"Failed to invoke intent: {response.status_code} - {response.text}"}
+    logger.info(f"Calling Home Assistant tool {name} with {arguments}")
+    return tool_result_to_text(await session.call_tool(name, arguments))
 
 
-async def get_intent_name(user_query: str) -> str:
+##############
+# AGENT LOOP #
+##############
+async def run_tool_loop(user_query: str) -> str:
+    async with open_mcp_session() as session:
+        listed = await session.list_tools()
+        tools = [to_openai_tool(tool) for tool in listed.tools if tool.name in Config.HOME_ASSISTANT_MCP_TOOLS]
+
+        messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": f"{SYSTEM_PROMPT}\nCurrent date and time: {datetime.now():%Y-%m-%d %H:%M}"},
+            {"role": "user", "content": user_query},
+        ]
+
+        for _ in range(Config.HOME_ASSISTANT_MAX_TOOL_ROUNDS):
+            completion = await openrouter_client.chat.completions.create(
+                model=Config.HOME_ASSISTANT_AGENT_MODEL, messages=messages, tools=tools
+            )
+            message = completion.choices[0].message
+
+            if not message.tool_calls:
+                return message.content or ""
+
+            messages.append(message.model_dump(include={"role", "content", "tool_calls"}))
+            for tool_call in message.tool_calls:
+                result = await call_tool(session, tool_call.function.name, tool_call.function.arguments)
+                messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": result})
+
+    raise RuntimeError(f"no answer after {Config.HOME_ASSISTANT_MAX_TOOL_ROUNDS} tool rounds")
+
+
+async def run_home_assistant_agent(user_query: str) -> dict:
     """
-    Run the agent with the user's query.
+    Let the model act on Home Assistant through its MCP server until it can answer the query.
+    Returns {"response": <model answer>} or {"error": <message>}.
     """
-    logger.info(f"Running Home Assistant Agent with user query: {user_query}")
+    logger.info(f"Running Home Assistant agent with user query: {user_query}")
 
-    cached = cache.get(CACHE_NAMESPACE, user_query)
+    try:
+        async with asyncio.timeout(Config.HOME_ASSISTANT_TIMEOUT_SECONDS):
+            response = await run_tool_loop(user_query)
+    except Exception as e:
+        # MCP transport errors surface as exception groups, so any failure is reported the same way.
+        logger.exception(f"Home Assistant agent failed: {e!r}")
+        return {"error": f"Home Assistant agent failed: {e!r}"}
 
-    if cached and cached.get("intent_name"):
-        logger.info("Cache hit")
-        return cached["intent_name"]
-
-    logger.info("Cache miss")
-
-    response = await build_agent().run_async(HomeAssistantInputSchema(user_query=user_query))
-
-    result = response.model_dump(mode="json")
-
-    cache.set(CACHE_NAMESPACE, user_query, result)
-
-    return result["intent_name"]
-
-
-async def run_home_assistant_agent(user_query: str, intent_name: Optional[str] = None) -> dict:
-    """
-    Invoke the Home Assistant intent for the user's query.
-    If the orchestrator already picked the intent, the intent LLM call is skipped.
-    """
-    if not intent_name:
-        intent_name = await get_intent_name(user_query)
-
-    logger.info(f"Invoking intent: {intent_name}")
-    return await invoke_intent(intent_name)
+    logger.info(f"Home Assistant agent response: {response}")
+    return {"response": response}
 
 
 #####################
 # DEMO EXECUTION #
 #####################
 if __name__ == "__main__":
-    import asyncio
-
     async def main():
-        # Example 1: Turn on mood lights
-        print(await run_home_assistant_agent("Turn on the mood lights"))
-
-        # Example 2: Get temperature
         print(await run_home_assistant_agent("What is the temperature right now?"))
-
-        # Example 3: Turn on ceiling lights
-        print(await run_home_assistant_agent("Turn on the ceiling lights"))
 
     asyncio.run(main())

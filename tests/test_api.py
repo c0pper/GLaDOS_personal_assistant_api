@@ -5,14 +5,10 @@ import httpx
 import pytest
 
 from src.agents.glados_responder_agent import GladosResponderOutputSchema
-from src.agents.home_assistant_agent import IntentName
 from src.agents.orchestrator_agent import OrchestratorOutputSchema
 from src.agents.vikunja_agent import VikunjaOutputSchema
 from src.main import app
 from src.services.llm_cache.llm_cache import cache
-
-SPEECH = {"speech": {"plain": {"speech": "Turned on the mood lights"}}}
-
 
 @pytest.fixture
 async def api():
@@ -23,7 +19,7 @@ async def api():
 def route_by_keyword(user_input):
     message = user_input.chat_message.lower()
     if "light" in message:
-        return OrchestratorOutputSchema(tool_name="Home Assistant Tool", home_assistant_intent=IntentName.TurnOnMoodLights)
+        return OrchestratorOutputSchema(tool_name="Home Assistant Tool")
     if "task" in message:
         return OrchestratorOutputSchema(tool_name="Vikunja Tool")
     if "search" in message:
@@ -36,11 +32,11 @@ def echo_tool_result(user_input):
 
 
 @pytest.fixture
-def pipeline(fake_llm, fake_http):
+def pipeline(fake_llm, fake_http, fake_ha):
     fake_llm.on(OrchestratorOutputSchema, route_by_keyword)
     fake_llm.on(GladosResponderOutputSchema, echo_tool_result)
     fake_llm.on(VikunjaOutputSchema, lambda _: VikunjaOutputSchema(action="get_tasks"))
-    fake_http.on("POST", "/api/intent/handle", httpx.Response(200, json=SPEECH))
+    fake_ha.replies = ["Turned on the mood lights"]
     fake_http.on("GET", "/api/v1/projects", httpx.Response(200, json=[{"id": 1, "title": "Personal"}]))
     fake_http.on("GET", "/api/v1/tasks", httpx.Response(200, json=[{"title": "Buy milk", "description": "now"}]))
     return fake_llm, fake_http
@@ -49,24 +45,26 @@ def pipeline(fake_llm, fake_http):
 ##########
 # /start #
 ##########
-async def test_home_assistant_flow_uses_two_llm_calls(api, pipeline):
-    fake_llm, fake_http = pipeline
+async def test_home_assistant_flow(api, pipeline, fake_ha):
+    fake_llm, _ = pipeline
 
     response = await api.post("/api/start", json={"message": "Turn on the mood lights"})
 
     assert response.status_code == 200
     assert response.json() == {"message": "GLaDOS: Turned on the mood lights"}
     assert [call.output_schema for call in fake_llm.calls] == [OrchestratorOutputSchema, GladosResponderOutputSchema]
-    assert len(fake_http.requests_to("/api/intent/handle")) == 1
+    assert len(fake_ha.llm_requests) == 1
 
 
-async def test_home_assistant_error_is_returned(api, pipeline):
-    _, fake_http = pipeline
-    fake_http.on("POST", "/api/intent/handle", httpx.Response(500, text="boom"))
+async def test_home_assistant_error_is_returned(api, pipeline, fake_ha):
+    async def fail(**_):
+        raise RuntimeError("boom")
+
+    fake_ha.create = fail
 
     response = await api.post("/api/start", json={"message": "Turn on the mood lights"})
 
-    assert response.json() == {"message": "Failed to invoke intent: 500 - boom"}
+    assert response.json() == {"message": "Home Assistant agent failed: RuntimeError('boom')"}
 
 
 async def test_vikunja_flow(api, pipeline):
@@ -94,13 +92,9 @@ async def test_unsupported_tool_returns_sorry(api, pipeline):
     assert [call.output_schema for call in fake_llm.calls] == [OrchestratorOutputSchema]
 
 
-async def test_repeat_query_reuses_route_but_not_stale_reply(api, pipeline):
-    fake_llm, fake_http = pipeline
-    readings = iter(["It is 20 degrees", "It is 25 degrees"])
-    fake_http.on(
-        "POST", "/api/intent/handle",
-        lambda request: httpx.Response(200, json={"speech": {"plain": {"speech": next(readings)}}}),
-    )
+async def test_repeat_query_reuses_route_but_not_stale_reply(api, pipeline, fake_ha):
+    fake_llm, _ = pipeline
+    fake_ha.replies = ["It is 20 degrees", "It is 25 degrees"]
 
     first = await api.post("/api/start", json={"message": "What's the light temperature?"})
     second = await api.post("/api/start", json={"message": "What's the light temperature?"})
