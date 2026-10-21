@@ -8,6 +8,7 @@ import pytest
 from src.agents.glados_responder_agent import GladosResponderOutputSchema
 from src.agents.orchestrator_agent import OrchestratorOutputSchema
 from src.agents.vikunja_agent import VikunjaOutputSchema
+from src.config import Config
 from src.main import app
 from src.services.llm_cache.llm_cache import cache
 from tests.test_speech_to_text import STT_PATH, make_wav
@@ -23,6 +24,8 @@ def route_by_keyword(user_input):
     message = user_input.chat_message.lower()
     if "light" in message:
         return OrchestratorOutputSchema(tool_name="Home Assistant Tool")
+    if "milk" in message:
+        return OrchestratorOutputSchema(tool_name="Grocy Tool")
     if "task" in message:
         return OrchestratorOutputSchema(tool_name="Vikunja Tool")
     if "search" in message:
@@ -35,11 +38,11 @@ def echo_tool_result(user_input):
 
 
 @pytest.fixture
-def pipeline(fake_llm, fake_http, fake_ha):
+def pipeline(fake_llm, fake_http, fake_mcp):
     fake_llm.on(OrchestratorOutputSchema, route_by_keyword)
     fake_llm.on(GladosResponderOutputSchema, echo_tool_result)
     fake_llm.on(VikunjaOutputSchema, lambda _: VikunjaOutputSchema(action="get_tasks"))
-    fake_ha.replies = ["Turned on the mood lights"]
+    fake_mcp.replies = ["Turned on the mood lights"]
     fake_http.on("GET", "/api/v1/projects", httpx.Response(200, json=[{"id": 1, "title": "Personal"}]))
     fake_http.on("GET", "/api/v1/tasks", httpx.Response(200, json=[{"title": "Buy milk", "description": "now"}]))
     return fake_llm, fake_http
@@ -48,7 +51,7 @@ def pipeline(fake_llm, fake_http, fake_ha):
 ##########
 # /start #
 ##########
-async def test_home_assistant_flow(api, pipeline, fake_ha):
+async def test_home_assistant_flow(api, pipeline, fake_mcp):
     fake_llm, _ = pipeline
 
     response = await api.post("/api/start", json={"message": "Turn on the mood lights"})
@@ -56,14 +59,14 @@ async def test_home_assistant_flow(api, pipeline, fake_ha):
     assert response.status_code == 200
     assert response.json() == {"message": "GLaDOS: Turned on the mood lights"}
     assert [call.output_schema for call in fake_llm.calls] == [OrchestratorOutputSchema, GladosResponderOutputSchema]
-    assert len(fake_ha.llm_requests) == 1
+    assert len(fake_mcp.llm_requests) == 1
 
 
-async def test_home_assistant_error_is_returned(api, pipeline, fake_ha):
+async def test_home_assistant_error_is_returned(api, pipeline, fake_mcp):
     async def fail(**_):
         raise RuntimeError("boom")
 
-    fake_ha.create = fail
+    fake_mcp.create = fail
 
     response = await api.post("/api/start", json={"message": "Turn on the mood lights"})
 
@@ -82,6 +85,15 @@ async def test_llm_failure_returns_message_instead_of_500(api, pipeline):
 
     assert response.status_code == 200
     assert response.json() == {"message": "Sorry, my brain is temporarily unavailable. Try again in a moment."}
+
+
+async def test_grocy_flow(api, pipeline, fake_mcp):
+    fake_mcp.replies = ["Added milk to the shopping list"]
+
+    response = await api.post("/api/start", json={"message": "Add milk to the shopping list"})
+
+    assert response.json() == {"message": "GLaDOS: Added milk to the shopping list"}
+    assert fake_mcp.session_urls == [Config.GROCY_MCP_URL]
 
 
 async def test_vikunja_flow(api, pipeline):
@@ -109,9 +121,9 @@ async def test_unsupported_tool_returns_sorry(api, pipeline):
     assert [call.output_schema for call in fake_llm.calls] == [OrchestratorOutputSchema]
 
 
-async def test_repeat_query_reuses_route_but_not_stale_reply(api, pipeline, fake_ha):
+async def test_repeat_query_reuses_route_but_not_stale_reply(api, pipeline, fake_mcp):
     fake_llm, _ = pipeline
-    fake_ha.replies = ["It is 20 degrees", "It is 25 degrees"]
+    fake_mcp.replies = ["It is 20 degrees", "It is 25 degrees"]
 
     first = await api.post("/api/start", json={"message": "What's the light temperature?"})
     second = await api.post("/api/start", json={"message": "What's the light temperature?"})

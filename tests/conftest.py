@@ -15,6 +15,7 @@ os.environ.update({
     "VIKUNJA_BASE_URL": "http://vikunja.test/api/v1",
     "VIKUNJA_TOKEN": "vikunja-token",
     "HA_MCP_URL": "http://ha-mcp.test/mcp",
+    "GROCY_MCP_URL": "http://grocy-mcp.test/mcp",
     "HOME_ASSISTANT_BASE_URL": "http://ha.test",
     "HOME_ASSISTANT_TOKEN": "ha-token",
     "LLM_CACHE_DB_PATH": os.path.join(tempfile.mkdtemp(prefix="glados-tests-"), "llm_cache.db"),
@@ -26,7 +27,7 @@ from atomic_agents import AtomicAgent, BaseIOSchema
 from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 from openai.types.chat import ChatCompletion
 
-from src.agents import home_assistant_agent, vikunja_agent
+from src.agents import mcp_agent, vikunja_agent
 from src.services import speech_to_text, text_to_speech
 from src.config import Config
 from src.services.llm_cache.llm_cache import cache
@@ -131,19 +132,21 @@ async def fake_http(monkeypatch) -> FakeHTTP:
         await client.aclose()
 
 
-###################
-# FAKE HA MCP LOOP #
-###################
-class FakeHomeAssistant:
+#################
+# FAKE MCP LOOP #
+#################
+class FakeMcpServer:
     """
-    Replaces the HA MCP session and the tool-calling LLM.
+    Replaces the MCP sessions (Home Assistant, Grocy, ...) and the tool-calling LLM of the MCP agents.
+    It serves every agent's allowed tools plus a disallowed one, so each agent's own filtering is exercised.
     `replies` are scripted LLM turns: a string is a final answer, a list of (tool, arguments) is a tool-call turn.
     The last reply repeats once the others are used up.
     """
 
     def __init__(self):
-        self.tools = [Tool(name=name, inputSchema={"type": "object"}) for name in Config.HOME_ASSISTANT_MCP_TOOLS]
-        self.tools.append(Tool(name="ha_restart", inputSchema={"type": "object"}))
+        names = [*Config.HOME_ASSISTANT_MCP_TOOLS, *Config.GROCY_MCP_TOOLS, "ha_restart"]
+        self.tools = [Tool(name=name, inputSchema={"type": "object"}) for name in names]
+        self.session_urls: List[str] = []
         self.tool_results: Dict[str, str] = {}
         self.replies: List[Any] = ["Done."]
         self.tool_calls: List[tuple] = []
@@ -173,21 +176,22 @@ class FakeHomeAssistant:
 
 
 @pytest.fixture
-def fake_ha(monkeypatch) -> FakeHomeAssistant:
-    ha = FakeHomeAssistant()
+def fake_mcp(monkeypatch) -> FakeMcpServer:
+    server = FakeMcpServer()
 
     @asynccontextmanager
-    async def open_mcp_session():
-        yield ha
+    async def open_mcp_session(url: str):
+        server.session_urls.append(url)
+        yield server
 
-    # Looked up through `ha.create` at call time so tests can swap it.
+    # Looked up through `server.create` at call time so tests can swap it.
     async def create(**request):
-        return await ha.create(**request)
+        return await server.create(**request)
 
-    monkeypatch.setattr(home_assistant_agent, "open_mcp_session", open_mcp_session)
-    monkeypatch.setattr(home_assistant_agent, "openrouter_client",
+    monkeypatch.setattr(mcp_agent, "open_mcp_session", open_mcp_session)
+    monkeypatch.setattr(mcp_agent, "openrouter_client",
                         SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create))))
-    return ha
+    return server
 
 
 ##################

@@ -1,6 +1,8 @@
 services:
   app:
-    image: glados_api:0.1.5
+    build:
+      context: .
+      dockerfile: Dockerfile
     pull_policy: never
     container_name: glados_api
     ports:
@@ -16,6 +18,7 @@ services:
       VIKUNJA_BASE_URL: http://192.168.1.4:3456/api/v1
       VIKUNJA_TOKEN: ${VIKUNJA_TOKEN}
       HA_MCP_URL: ${HA_MCP_URL}
+      GROCY_MCP_URL: http://192.168.1.4:8448/mcp
       HOME_ASSISTANT_BASE_URL: http://192.168.1.144:8123
       HOME_ASSISTANT_TOKEN: ${HOME_ASSISTANT_TOKEN}
       HOME_ASSISTANT_STT_ENTITY: stt.faster_whisper

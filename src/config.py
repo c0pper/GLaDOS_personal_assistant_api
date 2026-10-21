@@ -36,6 +36,42 @@ class Config:
         "ha_get_todo",
     )
 
+    GROCY_MCP_URL: str = os.environ["GROCY_MCP_URL"]
+    GROCY_AGENT_MODEL: str = "deepseek/deepseek-v4.1-flash"
+    GROCY_MAX_TOOL_ROUNDS: int = 12
+    GROCY_TIMEOUT_SECONDS: float = 90.0
+    # Everyday kitchen tools only: no generic entity create/update/delete, file, label-printing or
+    # clear-shopping-list tools, and no Grocy tasks (to-dos go to Vikunja).
+    GROCY_MCP_TOOLS: tuple = (
+        "stock_overview_tool",
+        "stock_expiring_tool",
+        "stock_product_info_tool",
+        "stock_search_tool",
+        "stock_add_tool",
+        "stock_consume_tool",
+        "stock_open_tool",
+        "stock_transfer_tool",
+        "locations_list_tool",
+        "shopping_list_view_tool",
+        "shopping_list_add_tool",
+        "shopping_list_remove_tool",
+        "shopping_list_set_amount_tool",
+        "shopping_list_set_note_tool",
+        "shopping_list_add_missing_tool",
+        "recipes_list_tool",
+        "recipe_details_tool",
+        "recipe_fulfillment_tool",
+        "recipe_add_to_shopping_tool",
+        "meal_plan_list_tool",
+        "meal_plan_summary_tool",
+        "meal_plan_add_tool",
+        "chores_list_tool",
+        "chores_overdue_tool",
+        "chore_execute_tool",
+        "discover_candidates_tool",
+        "calendar_summary_tool",
+    )
+
     # Speech-to-text goes through Home Assistant's STT API (the language must be one the entity supports).
     HOME_ASSISTANT_BASE_URL: str = os.environ["HOME_ASSISTANT_BASE_URL"]
     HOME_ASSISTANT_TOKEN: str = os.environ["HOME_ASSISTANT_TOKEN"]

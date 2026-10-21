@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from src.agents.orchestrator_agent import route_query
+from src.agents.grocy_agent import run_grocy_agent
 from src.agents.home_assistant_agent import run_home_assistant_agent
 from src.agents.glados_responder_agent import get_final_glados_response
 from src.agents.vikunja_agent import run_vikunja_agent
@@ -44,11 +45,18 @@ async def start(request: StartRequest):
         return {"message": "Sorry, my brain is temporarily unavailable. Try again in a moment."}
 
 
+# Tools backed by an MCP agent: each returns {"response": ...} or {"error": ...}.
+MCP_AGENTS = {
+    "Home Assistant Tool": run_home_assistant_agent,
+    "Grocy Tool": run_grocy_agent,
+}
+
+
 async def run_pipeline(message: str) -> dict:
     route = await route_query(message)
 
-    if route.tool_name == "Home Assistant Tool":
-        result = await run_home_assistant_agent(message)
+    if route.tool_name in MCP_AGENTS:
+        result = await MCP_AGENTS[route.tool_name](message)
         if result.get("error"):
             return {"message": result["error"]}
 

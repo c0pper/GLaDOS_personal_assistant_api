@@ -27,10 +27,10 @@ class OrchestratorOutputSchema(BaseIOSchema):
     Output schema for the GLaDOS Agent.
     Contains the tool to be used.
     """
-    tool_name: Literal['Home Assistant Tool', 'SearXNG Tool', 'Vikunja Tool', 'No Tool'] = Field(
+    tool_name: Literal['Home Assistant Tool', 'Grocy Tool', 'SearXNG Tool', 'Vikunja Tool', 'No Tool'] = Field(
         ...,
         description="The name of the tool that should be used to respond to the query. "
-                    "Must be one of the following: 'Home Assistant Tool', 'SearXNG Tool', "
+                    "Must be one of the following: 'Home Assistant Tool', 'Grocy Tool', 'SearXNG Tool', "
                     "or 'Vikunja Tool'. If the query is a simple conversational message and "
                     "does not require any tool to be used, select 'No Tool'."
     )
@@ -47,8 +47,11 @@ system_prompt_generator = SystemPromptGenerator(
         "Your task is to classify the user query and decide which tool, if any, should be used.",
         "Available tools:",
         "- Home Assistant Tool: if the query is about lights, appliances, presence, temperature.",
+        "- Grocy Tool: for groceries and the kitchen: pantry/fridge stock, expiring food, the shopping list, "
+        "recipes, the meal plan, and recurring household chores (cleaning, laundry, ...): anything mentioning "
+        "chores goes here.",
         "- SearXNG Tool: if the query can be answered with a web search.",
-        "- Vikunja Tool: for handling tasks and projects.",
+        "- Vikunja Tool: for to-dos, reminders, tasks and projects (but not chores).",
         "- No Tool: if the query is a simple conversational message that does not require any tool.",
     ],
     output_instructions=[
