@@ -11,6 +11,7 @@ async def test_cache_miss_calls_llm_and_caches(fake_llm):
     assert len(fake_llm.calls) == 1
     assert cache.get(CACHE_NAMESPACE, "Turn on the mood lights") == {
         "tool_name": "Home Assistant Tool",
+        "standalone_query": None,
     }
 
 
@@ -49,3 +50,18 @@ async def test_system_prompt_has_date(fake_llm):
 
     prompt = fake_llm.calls[0].system_prompt
     assert "Current date in format YYYY-MM-DD" in prompt
+
+
+async def test_history_is_passed_and_keys_the_cache(fake_llm):
+    fake_llm.on(OrchestratorOutputSchema, lambda _: OrchestratorOutputSchema(
+        tool_name="Home Assistant Tool", standalone_query="Turn off the kitchen lights"
+    ))
+
+    result = await route_query("Turn it off", "User: Turn on the kitchen lights\nGLaDOS: Done.")
+    # Same message without that history must not reuse the follow-up's route.
+    await route_query("Turn it off")
+
+    assert result.standalone_query == "Turn off the kitchen lights"
+    assert fake_llm.calls[0].user_input.conversation_history == "User: Turn on the kitchen lights\nGLaDOS: Done."
+    assert fake_llm.calls[1].user_input.conversation_history is None
+    assert len(fake_llm.calls) == 2

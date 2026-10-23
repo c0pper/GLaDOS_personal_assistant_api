@@ -42,6 +42,10 @@ uv run pytest tests/test_orchestrator.py
 
 # Run a single test function
 uv run pytest tests/test_orchestrator.py::test_cache_hit_skips_llm
+
+# Telegram bot (separate uv project and container)
+cd telegram_bot && uv run pytest
+cd telegram_bot && uv run python bot.py   # needs the API running at GLADOS_API_URL (default http://localhost:8001)
 ```
 
 ### Linting & Type Checking (recommended additions)
@@ -259,16 +263,24 @@ src/
 ├── logger.py            # Loguru logger setup
 ├── api/
 │   └── endpoints/
-│       ├── start.py     # Main chat endpoint
+│       ├── start.py     # Main chat endpoint (+ /start_audio, /speech)
+│       ├── conversations.py # Clear a conversation's memory
 │       └── cache.py     # Cache management
 ├── agents/
 │   ├── orchestrator_agent.py
 │   ├── glados_responder_agent.py
 │   └── home_assistant_agent.py
 └── services/
+    ├── conversation_store.py # SQLite conversation memory, keyed by the client's conversation_id
     └── llm_cache/
         └── llm_cache.py # SQLite LLM cache
+telegram_bot/            # Separate project/container: forwards Telegram messages and voice notes to the API
+└── bot.py
 ```
+
+Conversation memory: `/start` and `/start_audio` take an optional `conversation_id`. With one, recent exchanges are
+given to the orchestrator and the responder, and the orchestrator rewrites follow-ups ("turn it off") into a
+`standalone_query` for the tool agents, which never see the history. Without one, every message stands alone.
 
 ---
 
@@ -284,3 +296,5 @@ Required environment variables (see `.env.example` or docker-compose.yml):
 - `HOME_ASSISTANT_TTS_MEDIA_PLAYER` / `HOME_ASSISTANT_TTS_ENTITY` / `HOME_ASSISTANT_TTS_VOICE` - Music Assistant player (replies are announcements, so music resumes), TTS entity and voice for spoken replies to `/api/start_audio` (optional, default `media_player.minisgooglehome_2` / `tts.piper` / `glados`)
 - `VIKUNJA_BASE_URL` - Vikunja API URL
 - `VIKUNJA_TOKEN` - Vikunja API token
+- `TELEGRAM_TOKEN` / `TELEGRAM_ALLOWED_CHAT_IDS` - Telegram bot token and the comma-separated chat ids it answers
+  (bot container only; `GLADOS_API_URL` points it at the API)

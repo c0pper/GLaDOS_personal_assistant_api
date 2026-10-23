@@ -21,6 +21,9 @@ class GladosResponderInputSchema(BaseIOSchema):
 
     chat_message: str = Field(..., description="The original user query.")
     tool_result: Optional[str] = Field(None, description="The result of the processing done by the tool, if available.")
+    conversation_history: Optional[str] = Field(
+        None, description="Earlier exchanges of this conversation, oldest first, if any."
+    )
 
 
 class GladosResponderOutputSchema(BaseIOSchema):
@@ -43,6 +46,7 @@ system_prompt_generator = SystemPromptGenerator(
         "Your response will be spoken aloud, so avoid markdown or formatting.",
         "Always reply in English.",
         "You address the user as 'test subject', but do it only when necessary.",
+        "Earlier exchanges of the conversation may be provided for context: reply only to the latest message.",
     ],
     output_instructions=[
         "Craft a single concise response in GLaDOS's sarcastic tone.",
@@ -67,7 +71,9 @@ def build_agent() -> AtomicAgent[GladosResponderInputSchema, GladosResponderOutp
 ########################
 # RESPONDER FUNCTION #
 ########################
-async def get_final_glados_response(user_input: str, tool_result: Optional[str] = None) -> str:
+async def get_final_glados_response(
+    user_input: str, tool_result: Optional[str] = None, conversation_history: Optional[str] = None
+) -> str:
     """
     Run the GLaDOS Responder agent to create the final sarcastic response.
     """
@@ -76,6 +82,8 @@ async def get_final_glados_response(user_input: str, tool_result: Optional[str] 
 
     # The tool result is part of the key: live data (temperature, task lists) must never get a stale reply.
     cache_key = f"{user_input}\n{tool_result or ''}"
+    if conversation_history:
+        cache_key = f"{conversation_history}\n{cache_key}"
 
     cached = cache.get(CACHE_NAMESPACE, cache_key)
 
@@ -86,7 +94,9 @@ async def get_final_glados_response(user_input: str, tool_result: Optional[str] 
     logger.info("Cache miss")
 
     response = await build_agent().run_async(
-        GladosResponderInputSchema(chat_message=user_input, tool_result=tool_result)
+        GladosResponderInputSchema(
+            chat_message=user_input, tool_result=tool_result, conversation_history=conversation_history
+        )
     )
 
     cache.set(CACHE_NAMESPACE, cache_key, response.model_dump(mode="json"))

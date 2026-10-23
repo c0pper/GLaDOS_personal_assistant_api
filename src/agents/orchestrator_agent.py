@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import Field, ValidationError
 from atomic_agents import AtomicAgent, AgentConfig, BaseIOSchema
@@ -20,6 +20,9 @@ class OrchestratorInputSchema(BaseIOSchema):
     """Input schema for the GLaDOS Agent. Contains the user's message."""
 
     chat_message: str = Field(..., description="The user's input message to be analyzed and classified.")
+    conversation_history: Optional[str] = Field(
+        None, description="Earlier exchanges of this conversation, oldest first, if any."
+    )
 
 
 class OrchestratorOutputSchema(BaseIOSchema):
@@ -33,6 +36,12 @@ class OrchestratorOutputSchema(BaseIOSchema):
                     "Must be one of the following: 'Home Assistant Tool', 'Grocy Tool', 'SearXNG Tool', "
                     "or 'Vikunja Tool'. If the query is a simple conversational message and "
                     "does not require any tool to be used, select 'No Tool'."
+    )
+    standalone_query: Optional[str] = Field(
+        None,
+        description="Only when the message relies on the conversation history to be understood "
+                    "(e.g. 'turn it off', 'and tomorrow?'): the message rewritten as a self-contained request. "
+                    "Otherwise null."
     )
 
 
@@ -53,9 +62,12 @@ system_prompt_generator = SystemPromptGenerator(
         "- SearXNG Tool: if the query can be answered with a web search.",
         "- Vikunja Tool: for to-dos, reminders, tasks and projects (but not chores).",
         "- No Tool: if the query is a simple conversational message that does not require any tool.",
+        "Earlier exchanges of the conversation may be provided: use them to understand follow-up messages.",
     ],
     output_instructions=[
         "Analyze the input and select the most relevant tool or 'No Tool' if none apply.",
+        "If the message is a follow-up that cannot be understood without the earlier exchanges, "
+        "fill standalone_query with the request rewritten so the tool can act on it alone.",
         "Format output using the defined schema."
     ],
     context_providers={"current_date": CurrentDateProvider("Current Date")},
@@ -73,13 +85,16 @@ def build_agent() -> AtomicAgent[OrchestratorInputSchema, OrchestratorOutputSche
     )
 
 
-async def route_query(user_input: str) -> OrchestratorOutputSchema:
+async def route_query(user_input: str, conversation_history: Optional[str] = None) -> OrchestratorOutputSchema:
     """
-    Classify the user message: returns the tool to use.
+    Classify the user message: returns the tool to use, and the message made self-contained if it is a follow-up.
     """
     logger.info(f"User query: '{user_input}'")
 
-    cached = cache.get(CACHE_NAMESPACE, user_input)
+    # The same message can mean something else after a different conversation ("turn it off").
+    cache_key = f"{conversation_history}\n{user_input}" if conversation_history else user_input
+
+    cached = cache.get(CACHE_NAMESPACE, cache_key)
 
     if cached:
         try:
@@ -91,9 +106,11 @@ async def route_query(user_input: str) -> OrchestratorOutputSchema:
 
     logger.info("Cache miss")
 
-    output = await build_agent().run_async(OrchestratorInputSchema(chat_message=user_input))
+    output = await build_agent().run_async(
+        OrchestratorInputSchema(chat_message=user_input, conversation_history=conversation_history)
+    )
 
-    cache.set(CACHE_NAMESPACE, user_input, output.model_dump(mode="json"))
+    cache.set(CACHE_NAMESPACE, cache_key, output.model_dump(mode="json"))
 
     logger.info(f"Fresh result: {output.model_dump(mode='json')}")
 

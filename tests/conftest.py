@@ -7,6 +7,8 @@ import asyncio
 import json
 import os
 
+TEST_DB_DIR = tempfile.mkdtemp(prefix="glados-tests-")
+
 # Must run before any `src` import: Config reads the environment at import time.
 # Values are forced (not defaulted) so tests can never reach real services or the real cache DB.
 os.environ.update({
@@ -18,7 +20,8 @@ os.environ.update({
     "GROCY_MCP_URL": "http://grocy-mcp.test/mcp",
     "HOME_ASSISTANT_BASE_URL": "http://ha.test",
     "HOME_ASSISTANT_TOKEN": "ha-token",
-    "LLM_CACHE_DB_PATH": os.path.join(tempfile.mkdtemp(prefix="glados-tests-"), "llm_cache.db"),
+    "LLM_CACHE_DB_PATH": os.path.join(TEST_DB_DIR, "llm_cache.db"),
+    "CONVERSATION_DB_PATH": os.path.join(TEST_DB_DIR, "conversations.db"),
 })
 
 import pytest
@@ -30,6 +33,7 @@ from openai.types.chat import ChatCompletion
 from src.agents import mcp_agent, vikunja_agent
 from src.services import speech_to_text, text_to_speech
 from src.config import Config
+from src.services.conversation_store import conversations
 from src.services.llm_cache.llm_cache import cache
 
 
@@ -200,8 +204,10 @@ def fake_mcp(monkeypatch) -> FakeMcpServer:
 @pytest.fixture(autouse=True)
 def reset_state():
     cache.wipe()
+    conversations.wipe()
     provider = vikunja_agent.available_projects_provider
     provider.projects = None
     provider.fetched_at = 0.0
     yield
     cache.wipe()
+    conversations.wipe()

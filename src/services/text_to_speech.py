@@ -1,6 +1,8 @@
 from typing import Optional, Set
 import asyncio
+import io
 
+import av
 import httpx
 
 from src.config import Config
@@ -24,14 +26,10 @@ async def call_home_assistant(path: str, payload: dict, timeout: Optional[float]
     return response
 
 
-async def speak(text: str) -> bool:
+async def render(text: str) -> Optional[str]:
     """
-    Say `text` on the configured Music Assistant speaker as an announcement: music playing there is
-    lowered/paused and resumed afterwards, instead of being replaced like a plain tts.speak would do.
-    The audio is rendered first with the configured TTS entity and voice, so the voice doesn't depend on
-    Music Assistant's own announcement settings.
-    Returns False if the speech could not be rendered (the text reply is still usable without audio);
-    a failure of the announcement itself only shows up in the logs.
+    Render `text` with the configured TTS entity and voice; returns the URL of the audio on Home Assistant.
+    Home Assistant caches renders, so rendering the same reply again (speaker + Telegram) is cheap.
     """
     rendered = await call_home_assistant(
         "/api/tts_get_url",
@@ -42,11 +40,30 @@ async def speak(text: str) -> bool:
         },
     )
     if rendered is None:
+        return None
+
+    return rendered.json()["url"]
+
+
+#############
+# SPEAKER #
+#############
+async def speak(text: str) -> bool:
+    """
+    Say `text` on the configured Music Assistant speaker as an announcement: music playing there is
+    lowered/paused and resumed afterwards, instead of being replaced like a plain tts.speak would do.
+    The audio is rendered first with the configured TTS entity and voice, so the voice doesn't depend on
+    Music Assistant's own announcement settings.
+    Returns False if the speech could not be rendered (the text reply is still usable without audio);
+    a failure of the announcement itself only shows up in the logs.
+    """
+    url = await render(text)
+    if url is None:
         return False
 
     # Music Assistant only answers once the announcement has finished playing (chime included, 10+ seconds),
     # so it runs in the background and the caller gets its reply right away.
-    task = asyncio.create_task(announce(rendered.json()["url"]))
+    task = asyncio.create_task(announce(url))
     _announcements.add(task)
     task.add_done_callback(_announcements.discard)
     return True
@@ -65,3 +82,37 @@ async def announce(url: str) -> None:
     )
     if response is not None:
         logger.info(f"Reply announced on {Config.HOME_ASSISTANT_TTS_MEDIA_PLAYER}")
+
+
+###############
+# VOICE NOTE #
+###############
+def to_ogg_opus(audio: bytes) -> bytes:
+    """Transcode any audio ffmpeg decodes to mono OGG/Opus, the format Telegram shows as a voice note."""
+    output = io.BytesIO()
+
+    with av.open(io.BytesIO(audio)) as source, av.open(output, "w", format="ogg") as target:
+        # The encoder resamples and re-frames its input to what Opus needs.
+        stream = target.add_stream("libopus", rate=48000, layout="mono")
+        for frame in source.decode(audio=0):
+            frame.pts = None
+            target.mux(stream.encode(frame))
+        target.mux(stream.encode(None))
+
+    return output.getvalue()
+
+
+async def synthesize(text: str) -> Optional[bytes]:
+    """`text` spoken with the configured voice, as OGG/Opus; None if it could not be rendered."""
+    url = await render(text)
+    if url is None:
+        return None
+
+    try:
+        # Absolute URL on Home Assistant: the client's base URL is ignored, its token is still sent.
+        response = await home_assistant_client.get(url)
+        response.raise_for_status()
+        return await asyncio.to_thread(to_ogg_opus, response.content)
+    except (httpx.HTTPError, av.FFmpegError, ValueError) as e:
+        logger.error(f"Failed to fetch rendered speech ({url}): {e!r}")
+        return None

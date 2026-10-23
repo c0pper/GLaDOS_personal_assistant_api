@@ -40,3 +40,13 @@ async def test_every_call_starts_with_empty_history(fake_llm):
     await get_final_glados_response("two", "b")
 
     assert [call.history_length for call in fake_llm.calls] == [0, 0]
+
+
+async def test_history_is_passed_and_keys_the_cache(fake_llm):
+    fake_llm.on(GladosResponderOutputSchema, echo_tool_result)
+
+    await get_final_glados_response("And now?", "ok", "User: Hi\nGLaDOS: Oh. It's you.")
+    await get_final_glados_response("And now?", "ok")
+
+    assert fake_llm.calls[0].user_input.conversation_history == "User: Hi\nGLaDOS: Oh. It's you."
+    assert len(fake_llm.calls) == 2

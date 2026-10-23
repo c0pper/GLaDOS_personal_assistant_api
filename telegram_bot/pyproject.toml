@@ -1,0 +1,23 @@
+[project]
+name = "glados-telegram-bot"
+version = "0.1.0"
+description = "Telegram front-end for the GLaDOS personal assistant API"
+requires-python = ">=3.14"
+dependencies = [
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "python-dotenv>=1.2.4",
+    "python-telegram-bot>=22.8",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

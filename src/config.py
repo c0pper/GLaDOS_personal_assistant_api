@@ -94,3 +94,9 @@ class Config:
     VIKUNJA_PROJECTS_TTL_SECONDS: float = 600.0
 
     LLM_CACHE_DB_PATH: str = os.environ.get("LLM_CACHE_DB_PATH", "db/llm_cache.db")
+
+    # Conversation memory for clients that send a conversation_id (e.g. the Telegram bot): the last exchanges
+    # are given to the orchestrator and the responder, as long as they are recent enough to still be relevant.
+    CONVERSATION_DB_PATH: str = os.environ.get("CONVERSATION_DB_PATH", "db/conversations.db")
+    CONVERSATION_MAX_TURNS: int = 10
+    CONVERSATION_MAX_AGE_SECONDS: float = 6 * 3600
