@@ -11,7 +11,7 @@ from src.agents.vikunja_agent import VikunjaOutputSchema
 from src.config import Config
 from src.main import app
 from src.services.llm_cache.llm_cache import cache
-from tests.test_speech_to_text import STT_PATH, make_wav
+from tests.test_speech_to_text import STT_PATH, fail_openrouter_stt, fake_openrouter_stt, make_wav
 from tests.test_text_to_speech import TTS_PATH, fake_speaker
 
 @pytest.fixture
@@ -160,7 +160,7 @@ async def test_concurrent_requests_do_not_block_each_other(api, pipeline):
 ################
 async def test_audio_is_transcribed_answered_and_spoken(api, pipeline):
     fake_llm, fake_http = pipeline
-    fake_http.on("POST", STT_PATH, httpx.Response(200, json={"text": "Turn on the mood lights", "result": "success"}))
+    fake_openrouter_stt(fake_http, "Turn on the mood lights")
     fake_speaker(fake_http)
 
     response = await api.post("/api/start_audio", content=make_wav(), headers={"Content-Type": "audio/wav"})
@@ -168,6 +168,7 @@ async def test_audio_is_transcribed_answered_and_spoken(api, pipeline):
     assert response.json() == {
         "message": "GLaDOS: Turned on the mood lights",
         "transcript": "Turn on the mood lights",
+        "warning": None,
         "spoken": True,
     }
     assert fake_llm.calls[0].user_input.chat_message == "Turn on the mood lights"
@@ -176,17 +177,32 @@ async def test_audio_is_transcribed_answered_and_spoken(api, pipeline):
 
 async def test_audio_reply_when_speaker_fails_still_has_text(api, pipeline):
     _, fake_http = pipeline
-    fake_http.on("POST", STT_PATH, httpx.Response(200, json={"text": "Hello", "result": "success"}))
+    fake_openrouter_stt(fake_http, "Hello")
     fake_http.on("POST", TTS_PATH, httpx.Response(500, text="piper down"))
 
     response = await api.post("/api/start_audio", content=make_wav())
 
-    assert response.json() == {"message": "GLaDOS: None", "transcript": "Hello", "spoken": False}
+    assert response.json() == {"message": "GLaDOS: None", "transcript": "Hello", "warning": None, "spoken": False}
+
+
+async def test_audio_fallback_transcription_is_answered_with_a_warning(api, pipeline):
+    _, fake_http = pipeline
+    fail_openrouter_stt(fake_http)
+    fake_http.on("POST", STT_PATH, httpx.Response(200, json={"text": "Hello", "result": "success"}))
+    fake_speaker(fake_http)
+
+    response = await api.post("/api/start_audio", content=make_wav())
+
+    body = response.json()
+    assert (body["message"], body["transcript"], body["spoken"]) == ("GLaDOS: None", "Hello", True)
+    assert body["warning"].startswith("OpenRouter speech-to-text failed")
+    # The warning is for the client to show: only the reply is spoken.
+    assert json.loads(fake_http.requests_to(TTS_PATH)[0].content)["message"] == "GLaDOS: None"
 
 
 async def test_audio_transcription_error_skips_pipeline(api, pipeline):
     fake_llm, fake_http = pipeline
-    fake_http.on("POST", STT_PATH, httpx.Response(200, json={"text": None, "result": "error"}))
+    fake_openrouter_stt(fake_http, "")
     fake_speaker(fake_http)
 
     response = await api.post("/api/start_audio", content=make_wav())
@@ -194,6 +210,7 @@ async def test_audio_transcription_error_skips_pipeline(api, pipeline):
     assert response.json() == {
         "message": "Sorry, I couldn't understand the recording.",
         "transcript": None,
+        "warning": None,
         "spoken": True,
     }
     assert fake_llm.calls == []
@@ -208,6 +225,7 @@ async def test_empty_audio_body(api, pipeline):
     assert response.json() == {
         "message": "No audio received.",
         "transcript": None,
+        "warning": None,
         "spoken": True,
     }
 

@@ -292,7 +292,10 @@ Required environment variables (see `.env.example` or docker-compose.yml):
 - `HA_MCP_URL` - Home Assistant MCP server URL (streamable HTTP; the path contains a secret, keep it in `.env`)
 - `GROCY_MCP_URL` - Grocy MCP server URL (streamable HTTP)
 - `HOME_ASSISTANT_BASE_URL` / `HOME_ASSISTANT_TOKEN` - Home Assistant REST API, used for speech-to-text (`/api/start_audio`)
-- `HOME_ASSISTANT_STT_ENTITY` / `HOME_ASSISTANT_STT_LANGUAGE` - STT provider and a language it supports (optional, default `stt.faster_whisper` / `en`)
+- `OPENROUTER_STT_MODEL` - OpenRouter speech-to-text model used first by `/api/start_audio` (optional, default `openai/gpt-4o-mini-transcribe`)
+- `OPENROUTER_STT_LANGUAGE` - ISO-639-1 code to force the OpenRouter STT language (optional, default unset: auto-detected)
+- `HOME_ASSISTANT_STT_ENTITY` / `HOME_ASSISTANT_STT_LANGUAGE` - fallback STT provider used when OpenRouter fails (the response
+  then carries a `warning`) and the language it transcribes (optional, default `stt.faster_whisper` / `en`)
 - `HOME_ASSISTANT_TTS_MEDIA_PLAYER` / `HOME_ASSISTANT_TTS_ENTITY` / `HOME_ASSISTANT_TTS_VOICE` - Music Assistant player (replies are announcements, so music resumes), TTS entity and voice for spoken replies to `/api/start_audio` (optional, default `media_player.minisgooglehome_2` / `tts.piper` / `glados`)
 - `VIKUNJA_BASE_URL` - Vikunja API URL
 - `VIKUNJA_TOKEN` - Vikunja API token

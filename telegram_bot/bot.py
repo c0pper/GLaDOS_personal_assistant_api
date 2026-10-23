@@ -133,6 +133,9 @@ async def on_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     # The transcript is shown so misheard requests are easy to spot.
     text = f"🎙 {result['transcript']}\n\n{result['message']}"
+    if result.get("warning"):
+        # The API had to use its fallback speech-to-text.
+        text = f"⚠️ {result['warning']}\n\n{text}"
     if speech is None:
         await update.message.reply_text(text)
     elif len(text) <= Config.MAX_CAPTION_LENGTH:

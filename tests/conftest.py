@@ -28,6 +28,7 @@ import pytest
 import httpx
 from atomic_agents import AtomicAgent, BaseIOSchema
 from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
+from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
 
 from src.agents import mcp_agent, vikunja_agent
@@ -127,6 +128,13 @@ async def fake_http(monkeypatch) -> FakeHTTP:
         )
         monkeypatch.setattr(module, attribute, client)
         clients.append(client)
+
+    # OpenRouter's speech-to-text API is served by the same fake (path /api/v1/audio/transcriptions).
+    openrouter_http = httpx.AsyncClient(transport=transport)
+    monkeypatch.setattr(speech_to_text, "openrouter_client", AsyncOpenAI(
+        base_url="http://openrouter.test/api/v1", api_key="test-key", http_client=openrouter_http, max_retries=0
+    ))
+    clients.append(openrouter_http)
 
     yield http
 

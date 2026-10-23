@@ -107,15 +107,20 @@ async def run_pipeline(message: str, conversation_history: Optional[str] = None)
 async def start_audio(request: Request, conversation_id: Optional[str] = None):
     audio = await request.body()
     logger.info(f"Received {len(audio)} bytes of audio ({request.headers.get('content-type')})")
+    # Set when the fallback speech-to-text was used: returned for the client to show, not spoken.
+    warning = None
     if not audio:
         response = {"message": "No audio received.", "transcript": None}
     else:
         transcript = await transcribe(audio)
+        warning = transcript.get("warning")
         if transcript.get("error"):
             response = {"message": transcript["error"], "transcript": None}
         else:
             start_response = await start(StartRequest(message=transcript["text"], conversation_id=conversation_id))
             response = {**start_response, "transcript": transcript["text"]}
+
+    response["warning"] = warning
 
     return {**response, "spoken": await speak(response["message"])}
 

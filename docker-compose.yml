@@ -21,6 +21,8 @@ services:
       GROCY_MCP_URL: http://192.168.1.4:8448/mcp
       HOME_ASSISTANT_BASE_URL: http://192.168.1.144:8123
       HOME_ASSISTANT_TOKEN: ${HOME_ASSISTANT_TOKEN}
+      # Speech-to-text: OpenRouter first, Home Assistant's Whisper as a fallback.
+      OPENROUTER_STT_MODEL: openai/gpt-4o-mini-transcribe
       HOME_ASSISTANT_STT_ENTITY: stt.faster_whisper
       HOME_ASSISTANT_STT_LANGUAGE: en
       HOME_ASSISTANT_TTS_MEDIA_PLAYER: media_player.minisgooglehome_2

@@ -39,9 +39,9 @@ async def test_text_when_api_is_down(fake_api):
 #########
 # VOICE #
 #########
-def answer_voice(fake_api, transcript="Turn on the lights", message="Lights on. Thrilling."):
+def answer_voice(fake_api, transcript="Turn on the lights", message="Lights on. Thrilling.", warning=None):
     fake_api.on("POST", "/api/start_audio", httpx.Response(200, json={
-        "message": message, "transcript": transcript, "spoken": True,
+        "message": message, "transcript": transcript, "warning": warning, "spoken": True,
     }))
     fake_api.on("POST", "/api/speech", httpx.Response(200, content=VOICE_REPLY, headers={"Content-Type": "audio/ogg"}))
 
@@ -61,6 +61,18 @@ async def test_voice_is_answered_with_a_voice_note(fake_api):
         "voice": VOICE_REPLY,
         "caption": "🎙 Turn on the lights\n\nLights on. Thrilling.",
     }]
+
+
+async def test_fallback_transcription_warning_is_shown(fake_api):
+    answer_voice(fake_api, warning="OpenRouter speech-to-text failed, so the local fallback was used.")
+    update = make_update(voice_bytes=b"recording")
+
+    await bot.on_voice(update, None)
+
+    assert update.message.replies[0]["caption"] == (
+        "⚠️ OpenRouter speech-to-text failed, so the local fallback was used.\n\n"
+        "🎙 Turn on the lights\n\nLights on. Thrilling."
+    )
 
 
 async def test_voice_reply_falls_back_to_text_without_speech(fake_api):

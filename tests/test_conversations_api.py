@@ -3,7 +3,7 @@ import httpx
 from src.agents.orchestrator_agent import OrchestratorOutputSchema
 from src.services.conversation_store import conversations
 from tests.test_api import api, pipeline, route_by_keyword  # noqa: F401 (fixtures)
-from tests.test_speech_to_text import STT_PATH, make_wav
+from tests.test_speech_to_text import fake_openrouter_stt, make_wav
 from tests.test_text_to_speech import AUDIO_URL, TTS_PATH, fake_speaker
 
 
@@ -70,7 +70,7 @@ async def test_failed_pipeline_is_not_remembered(api, pipeline):
 
 async def test_audio_transcript_joins_the_conversation(api, pipeline):
     _, fake_http = pipeline
-    fake_http.on("POST", STT_PATH, httpx.Response(200, json={"text": "Hello", "result": "success"}))
+    fake_openrouter_stt(fake_http, "Hello")
     fake_speaker(fake_http)
 
     await api.post("/api/start_audio", params={"conversation_id": "telegram:1"}, content=make_wav())

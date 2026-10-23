@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -72,7 +73,12 @@ class Config:
         "calendar_summary_tool",
     )
 
-    # Speech-to-text goes through Home Assistant's STT API (the language must be one the entity supports).
+    # Speech-to-text goes through OpenRouter; if that fails, through Home Assistant's STT API as a fallback
+    # (whose language must be one the entity supports).
+    OPENROUTER_STT_MODEL: str = os.environ.get("OPENROUTER_STT_MODEL", "openai/gpt-4o-mini-transcribe")
+    # ISO-639-1 code to force a language; unset, the model detects it (e.g. Italian or English).
+    OPENROUTER_STT_LANGUAGE: Optional[str] = os.environ.get("OPENROUTER_STT_LANGUAGE") or None
+    OPENROUTER_STT_TIMEOUT_SECONDS: float = 20.0
     HOME_ASSISTANT_BASE_URL: str = os.environ["HOME_ASSISTANT_BASE_URL"]
     HOME_ASSISTANT_TOKEN: str = os.environ["HOME_ASSISTANT_TOKEN"]
     HOME_ASSISTANT_STT_ENTITY: str = os.environ.get("HOME_ASSISTANT_STT_ENTITY", "stt.faster_whisper")
