@@ -12,6 +12,7 @@ TEST_DB_DIR = tempfile.mkdtemp(prefix="glados-tests-")
 # Must run before any `src` import: Config reads the environment at import time.
 # Values are forced (not defaulted) so tests can never reach real services or the real cache DB.
 os.environ.update({
+    "GLADOS_API_KEY": "test-api-key",
     "OPENROUTER_API_KEY": "test-key",
     "SEARXNG_URL": "http://searxng.test",
     "VIKUNJA_BASE_URL": "http://vikunja.test/api/v1",

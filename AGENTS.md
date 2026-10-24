@@ -287,6 +287,7 @@ given to the orchestrator and the responder, and the orchestrator rewrites follo
 ## Environment Variables
 
 Required environment variables (see `.env.example` or docker-compose.yml):
+- `GLADOS_API_KEY` - Shared secret every `/api/*` endpoint requires in the `X-API-Key` header (the Telegram bot sends it too)
 - `OPENROUTER_API_KEY` - API key for LLM calls
 - `SEARXNG_URL` - SearXNG instance URL
 - `HA_MCP_URL` - Home Assistant MCP server URL (streamable HTTP; the path contains a secret, keep it in `.env`)

@@ -7,6 +7,8 @@ load_dotenv()
 
 @dataclass
 class Config:
+    # Shared secret every /api endpoint requires in the X-API-Key header (the Telegram bot sends it too).
+    GLADOS_API_KEY: str = os.environ["GLADOS_API_KEY"]
     OPENROUTER_API_KEY: str = os.environ["OPENROUTER_API_KEY"]
     SEARXNG_URL: str = os.environ["SEARXNG_URL"]
 

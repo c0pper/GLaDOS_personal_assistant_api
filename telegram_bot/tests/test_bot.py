@@ -23,6 +23,7 @@ async def test_text_goes_to_start_with_the_chat_conversation(fake_api):
         "message": "Turn on the lights",
         "conversation_id": "telegram:42",
     }
+    assert fake_api.requests[0].headers["X-API-Key"] == "test-api-key"
     assert update.message.replies == [{"text": "Lights on. Thrilling."}]
     assert update.effective_chat.actions == ["typing"]
 
@@ -133,6 +134,10 @@ def handled_by(chat_id: int, **message_fields) -> list:
 
 def test_allowed_chat_ids_are_parsed():
     assert bot.Config.TELEGRAM_ALLOWED_CHAT_IDS == (42, 7)
+
+
+def test_api_client_sends_the_key():
+    assert bot.api_client.headers["X-API-Key"] == "test-api-key"
 
 
 def test_allowed_chat_messages_reach_the_handlers():

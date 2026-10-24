@@ -22,6 +22,8 @@ class Config:
         int(chat_id) for chat_id in os.environ["TELEGRAM_ALLOWED_CHAT_IDS"].split(",") if chat_id.strip()
     )
     GLADOS_API_URL: str = os.environ.get("GLADOS_API_URL", "http://localhost:8001")
+    # Shared secret the API requires in the X-API-Key header.
+    GLADOS_API_KEY: str = os.environ["GLADOS_API_KEY"]
     # A request can run several tool rounds (Home Assistant/Grocy agents time out at 90 seconds).
     API_TIMEOUT_SECONDS: float = 180.0
     # Telegram shows a chat action ("typing...") for about 5 seconds, so it is re-sent while waiting.
@@ -31,7 +33,11 @@ class Config:
 
 UNREACHABLE_MESSAGE = "My brain is unreachable at the moment. Try again later."
 
-api_client = httpx.AsyncClient(base_url=Config.GLADOS_API_URL, timeout=Config.API_TIMEOUT_SECONDS)
+api_client = httpx.AsyncClient(
+    base_url=Config.GLADOS_API_URL,
+    headers={"X-API-Key": Config.GLADOS_API_KEY},
+    timeout=Config.API_TIMEOUT_SECONDS,
+)
 
 
 ###########

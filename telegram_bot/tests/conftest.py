@@ -8,6 +8,7 @@ os.environ.update({
     "TELEGRAM_TOKEN": "123:test-token",
     "TELEGRAM_ALLOWED_CHAT_IDS": "42, 7",
     "GLADOS_API_URL": "http://glados.test",
+    "GLADOS_API_KEY": "test-api-key",
 })
 
 import httpx
@@ -40,7 +41,11 @@ class FakeApi:
 @pytest.fixture
 async def fake_api(monkeypatch) -> FakeApi:
     api = FakeApi()
-    client = httpx.AsyncClient(base_url=bot.Config.GLADOS_API_URL, transport=httpx.MockTransport(api.handle))
+    client = httpx.AsyncClient(
+        base_url=bot.Config.GLADOS_API_URL,
+        headers=bot.api_client.headers,
+        transport=httpx.MockTransport(api.handle),
+    )
     monkeypatch.setattr(bot, "api_client", client)
     yield api
     await client.aclose()

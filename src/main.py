@@ -3,8 +3,9 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
+from src.api.auth import require_api_key
 from src.api.endpoints.start import router as start_router
 from src.api.endpoints.cache import router as cache_router
 from src.api.endpoints.conversations import router as conversations_router
@@ -23,9 +24,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.include_router(start_router, prefix="/api")
-app.include_router(cache_router, prefix="/api")
-app.include_router(conversations_router, prefix="/api")
+app.include_router(start_router, prefix="/api", dependencies=[Depends(require_api_key)])
+app.include_router(cache_router, prefix="/api", dependencies=[Depends(require_api_key)])
+app.include_router(conversations_router, prefix="/api", dependencies=[Depends(require_api_key)])
 
 if __name__ == "__main__":
     import uvicorn

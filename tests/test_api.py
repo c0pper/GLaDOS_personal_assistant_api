@@ -16,7 +16,11 @@ from tests.test_text_to_speech import TTS_PATH, fake_speaker
 
 @pytest.fixture
 async def api():
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://test",
+        headers={"X-API-Key": Config.GLADOS_API_KEY},
+    ) as client:
         yield client
 
 
