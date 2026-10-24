@@ -144,6 +144,8 @@ async def _route_with_jev(
     except jev_client.JevError:
         return None
 
+    logger.debug(f"Jev answers: {response.answers}")
+
     tool = _choice_answer(response, "tool")
     if tool is None or tool.choice not in TOOL_DESCRIPTIONS:
         logger.warning(f"Jev returned an unusable tool answer: {response.answers.get('tool')!r}")
@@ -163,7 +165,10 @@ async def _route_with_jev(
             logger.warning("Jev did not answer needs_rewrite: using the LLM")
             return None
         if probability > Config.JEV_FOLLOW_UP_THRESHOLD:
-            logger.info(f"Jev thinks the message is a follow-up ({probability:.2f}): using the LLM to rewrite it")
+            logger.info(
+                f"Jev route '{tool.choice}' (confidence {tool.confidence}) needs a rewrite "
+                f"(follow-up {probability:.2f}): using the LLM for a self-contained query"
+            )
             return None
 
     logger.info(f"Jev route: {tool.choice} (confidence {tool.confidence})")
