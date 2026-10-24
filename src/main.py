@@ -5,7 +5,7 @@ load_dotenv()
 
 from fastapi import Depends, FastAPI
 
-from src.api.auth import require_api_key
+from src.api.auth import log_api_key_config, require_api_key
 from src.api.endpoints.start import router as start_router
 from src.api.endpoints.cache import router as cache_router
 from src.api.endpoints.conversations import router as conversations_router
@@ -16,6 +16,7 @@ from src.services.llm_client import openrouter_client
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log_api_key_config()
     yield
     await close_http_clients()
     await openrouter_client.close()

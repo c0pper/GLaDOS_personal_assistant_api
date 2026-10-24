@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import AsyncIterator, Optional
 import asyncio
+import hashlib
 import os
 
 from dotenv import load_dotenv
@@ -43,6 +44,24 @@ api_client = httpx.AsyncClient(
 ###########
 # HELPERS #
 ###########
+def api_key_fingerprint(key: str) -> str:
+    """Non-reversible fingerprint of the shared key, so two processes' logs can be compared without printing it."""
+    if not key:
+        return "EMPTY (0 chars)"
+    return f"sha256:{hashlib.sha256(key.encode()).hexdigest()[:12]} ({len(key)} chars)"
+
+
+def log_api_key_config() -> None:
+    """
+    Log which key this process loaded at startup. A bot whose fingerprint differs from the API's gets 401 on
+    every call. Set GLADOS_LOG_API_KEY=true to print the raw value instead.
+    """
+    if os.environ.get("GLADOS_LOG_API_KEY", "").lower() == "true":
+        logger.warning(f"GLADOS_API_KEY={Config.GLADOS_API_KEY!r} (raw logging enabled by GLADOS_LOG_API_KEY)")
+    else:
+        logger.info(f"GLADOS_API_KEY fingerprint: {api_key_fingerprint(Config.GLADOS_API_KEY)}")
+
+
 def conversation_id(update: Update) -> str:
     """One GLaDOS conversation (memory) per Telegram chat."""
     return f"telegram:{update.effective_chat.id}"
@@ -183,6 +202,7 @@ def build_application() -> Application:
 
 
 if __name__ == "__main__":
+    log_api_key_config()
     logger.info(f"Starting GLaDOS Telegram bot for chats {Config.TELEGRAM_ALLOWED_CHAT_IDS} -> {Config.GLADOS_API_URL}")
     # Long polling: only outbound connections, no public URL needed.
     build_application().run_polling(allowed_updates=Update.ALL_TYPES)
