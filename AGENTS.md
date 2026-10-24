@@ -4,7 +4,7 @@ This file provides guidelines for agentic coding agents working on this codebase
 
 ## Project Overview
 
-This is a FastAPI-based personal assistant API (GLaDOS) that uses atomic-agents framework for orchestrating different tools (Home Assistant, SearXNG, Vikunja). Python 3.14+ required.
+This is a FastAPI-based personal assistant API (GLaDOS) that uses atomic-agents framework for orchestrating different tools (Home Assistant, Grocy, Vikunja, Tavily web search). Python 3.14+ required.
 
 ---
 
@@ -154,7 +154,7 @@ class OrchestratorInputSchema(BaseIOSchema):
 class OrchestratorOutputSchema(BaseIOSchema):
     """Output schema for the GLaDOS Agent."""
 
-    tool_name: Literal['Home Assistant Tool', 'SearXNG Tool', 'No Tool'] = Field(
+    tool_name: Literal['Home Assistant Tool', 'Web Search Tool', 'No Tool'] = Field(
         ...,
         description="The name of the tool that should be used."
     )
@@ -291,7 +291,8 @@ Required environment variables (see `.env.example` or docker-compose.yml):
 - `OPENROUTER_API_KEY` - API key for LLM calls
 - `JEV_ENABLED` / `JEV_MODEL` - optional fast tool routing through TypeSafe's Jev decision model (disabled by default;
   evaluate with `scripts/jev_benchmark.py` before enabling; pin a version instead of the `~typesafe/jev-latest` alias)
-- `SEARXNG_URL` - SearXNG instance URL
+- `TAVILY_MCP_URL` - Tavily MCP server URL for web search (streamable HTTP; the query string carries the API key,
+  keep it in `.env`)
 - `HA_MCP_URL` - Home Assistant MCP server URL (streamable HTTP; the path contains a secret, keep it in `.env`)
 - `GROCY_MCP_URL` - Grocy MCP server URL (streamable HTTP)
 - `HOME_ASSISTANT_BASE_URL` / `HOME_ASSISTANT_TOKEN` - Home Assistant REST API, used for speech-to-text (`/api/start_audio`)

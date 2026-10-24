@@ -41,7 +41,7 @@ MESSAGES = [
     {"message": "What's about to expire in the fridge?", "expected": "Grocy Tool"},
     {"message": "Remind me to call the dentist tomorrow.", "expected": "Vikunja Tool"},
     {"message": "Show me my pending tasks.", "expected": "Vikunja Tool"},
-    {"message": "Who won the football match yesterday?", "expected": "SearXNG Tool"},
+    {"message": "Who won the football match yesterday?", "expected": "Web Search Tool"},
     {"message": "Hello, how are you?", "expected": "No Tool"},
     {"message": "Spegni le luci del soggiorno.", "expected": "Home Assistant Tool"},
     {"message": "Cosa sta per scadere in frigo?", "expected": "Grocy Tool"},
@@ -55,7 +55,7 @@ MESSAGES = [
     {
         "message": "What about tomorrow?",
         "history": "User: What's the weather today?\nGLaDOS: Sunny.",
-        "expected": "SearXNG Tool",
+        "expected": "Web Search Tool",
     },
 ]
 

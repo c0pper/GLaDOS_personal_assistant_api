@@ -33,7 +33,7 @@ def route_by_keyword(user_input):
     if "task" in message:
         return OrchestratorOutputSchema(tool_name="Vikunja Tool")
     if "search" in message:
-        return OrchestratorOutputSchema(tool_name="SearXNG Tool")
+        return OrchestratorOutputSchema(tool_name="Web Search Tool")
     return OrchestratorOutputSchema(tool_name="No Tool")
 
 
@@ -116,13 +116,27 @@ async def test_no_tool_goes_straight_to_responder(api, pipeline):
     assert fake_http.requests == []
 
 
-async def test_unsupported_tool_returns_sorry(api, pipeline):
+async def test_web_search_flow(api, pipeline, fake_mcp):
+    fake_mcp.replies = ["Cake needs flour, eggs and sugar."]
+
+    response = await api.post("/api/start", json={"message": "Search the web for a cake recipe"})
+
+    assert response.json() == {"message": "GLaDOS: Cake needs flour, eggs and sugar."}
+    assert fake_mcp.session_urls == [Config.TAVILY_MCP_URL]
+
+
+async def test_unsupported_tool_returns_sorry(api, pipeline, monkeypatch):
     fake_llm, _ = pipeline
+
+    async def route_to_unknown_tool(*_):
+        return OrchestratorOutputSchema.model_construct(tool_name="Some Future Tool", standalone_query=None)
+
+    monkeypatch.setattr("src.api.endpoints.start.route_query", route_to_unknown_tool)
 
     response = await api.post("/api/start", json={"message": "Search the web for cake"})
 
     assert response.json() == {"message": "Sorry, I don't know how to help you with that."}
-    assert [call.output_schema for call in fake_llm.calls] == [OrchestratorOutputSchema]
+    assert [call.output_schema for call in fake_llm.calls] == []
 
 
 async def test_repeat_query_reuses_route_but_not_stale_reply(api, pipeline, fake_mcp):

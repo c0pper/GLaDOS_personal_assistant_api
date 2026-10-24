@@ -14,7 +14,7 @@ TEST_DB_DIR = tempfile.mkdtemp(prefix="glados-tests-")
 os.environ.update({
     "GLADOS_API_KEY": "test-api-key",
     "OPENROUTER_API_KEY": "test-key",
-    "SEARXNG_URL": "http://searxng.test",
+    "TAVILY_MCP_URL": "http://tavily-mcp.test/mcp/?tavilyApiKey=test-key",
     "VIKUNJA_BASE_URL": "http://vikunja.test/api/v1",
     "VIKUNJA_TOKEN": "vikunja-token",
     "HA_MCP_URL": "http://ha-mcp.test/mcp",
@@ -189,7 +189,7 @@ class FakeMcpServer:
     """
 
     def __init__(self):
-        names = [*Config.HOME_ASSISTANT_MCP_TOOLS, *Config.GROCY_MCP_TOOLS, "ha_restart"]
+        names = [*Config.HOME_ASSISTANT_MCP_TOOLS, *Config.GROCY_MCP_TOOLS, *Config.TAVILY_MCP_TOOLS, "ha_restart"]
         self.tools = [Tool(name=name, inputSchema={"type": "object"}) for name in names]
         self.session_urls: List[str] = []
         self.tool_results: Dict[str, str] = {}

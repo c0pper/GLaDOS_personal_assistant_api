@@ -9,6 +9,7 @@ from src.agents.grocy_agent import run_grocy_agent
 from src.agents.home_assistant_agent import run_home_assistant_agent
 from src.agents.glados_responder_agent import get_final_glados_response
 from src.agents.vikunja_agent import run_vikunja_agent
+from src.agents.web_search_agent import run_web_search_agent
 from src.logger import logger
 from src.services.conversation_store import conversations
 from src.services.speech_to_text import transcribe
@@ -63,6 +64,7 @@ async def start(request: StartRequest):
 MCP_AGENTS = {
     "Home Assistant Tool": run_home_assistant_agent,
     "Grocy Tool": run_grocy_agent,
+    "Web Search Tool": run_web_search_agent,
 }
 
 

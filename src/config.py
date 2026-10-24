@@ -10,7 +10,6 @@ class Config:
     # Shared secret every /api endpoint requires in the X-API-Key header (the Telegram bot sends it too).
     GLADOS_API_KEY: str = os.environ["GLADOS_API_KEY"]
     OPENROUTER_API_KEY: str = os.environ["OPENROUTER_API_KEY"]
-    SEARXNG_URL: str = os.environ["SEARXNG_URL"]
 
     ORCHESTRATOR_AGENT_MODEL: str = "google/gemini-2.5-flash-lite"
     RESPONDER_AGENT_MODEL: str = "openai/gpt-4o-mini"
@@ -89,6 +88,18 @@ class Config:
         "chore_execute_tool",
         "discover_candidates_tool",
         "calendar_summary_tool",
+    )
+
+    # Tavily's hosted MCP server for web search; the URL carries the API key as a query parameter.
+    TAVILY_MCP_URL: str = os.environ["TAVILY_MCP_URL"]
+    TAVILY_AGENT_MODEL: str = "deepseek/deepseek-v4.1-flash"
+    TAVILY_MAX_TOOL_ROUNDS: int = 6
+    TAVILY_TIMEOUT_SECONDS: float = 60.0
+    # Searching and reading pages covers questions; crawling/mapping whole sites and deep research are
+    # slow (research is rate-limited) and belong in a dedicated request, not a one-shot chat answer.
+    TAVILY_MCP_TOOLS: tuple = (
+        "tavily_search",
+        "tavily_extract",
     )
 
     # Speech-to-text goes through OpenRouter; if that fails, through Home Assistant's STT API as a fallback

@@ -20,7 +20,7 @@ TOOL_DESCRIPTIONS = {
     "Grocy Tool": "Groceries and the kitchen: pantry/fridge stock, expiring food, the shopping list, "
                   "recipes, the meal plan, and recurring household chores (cleaning, laundry, ...). "
                   "Anything mentioning chores goes here.",
-    "SearXNG Tool": "Questions that can be answered with a web search.",
+    "Web Search Tool": "Questions that can be answered with a web search.",
     "Vikunja Tool": "To-dos, reminders, tasks and projects (but not chores).",
     "No Tool": "A simple conversational message that does not require any tool.",
 }
@@ -43,10 +43,10 @@ class OrchestratorOutputSchema(BaseIOSchema):
     Output schema for the GLaDOS Agent.
     Contains the tool to be used.
     """
-    tool_name: Literal['Home Assistant Tool', 'Grocy Tool', 'SearXNG Tool', 'Vikunja Tool', 'No Tool'] = Field(
+    tool_name: Literal['Home Assistant Tool', 'Grocy Tool', 'Web Search Tool', 'Vikunja Tool', 'No Tool'] = Field(
         ...,
         description="The name of the tool that should be used to respond to the query. "
-                    "Must be one of the following: 'Home Assistant Tool', 'Grocy Tool', 'SearXNG Tool', "
+                    "Must be one of the following: 'Home Assistant Tool', 'Grocy Tool', 'Web Search Tool', "
                     "or 'Vikunja Tool'. If the query is a simple conversational message and "
                     "does not require any tool to be used, select 'No Tool'."
     )
@@ -217,7 +217,7 @@ if __name__ == "__main__":
         # Example 1: Home Assistant query
         print(await route_query("Turn off the living room lights, you incompetent simpleton."))
 
-        # Example 2: SearXNG query
+        # Example 2: Web search query
         print(await route_query("Find a recipe for cake. Not that you'd know how to use an oven."))
 
         # Example 3: Vikunja query

@@ -16,7 +16,7 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       # Shared secret every /api endpoint requires in the X-API-Key header.
       GLADOS_API_KEY: ${GLADOS_API_KEY}
-      SEARXNG_URL: http://192.168.1.4:8899
+      TAVILY_MCP_URL: ${TAVILY_MCP_URL}
       VIKUNJA_BASE_URL: http://192.168.1.4:3456/api/v1
       VIKUNJA_TOKEN: ${VIKUNJA_TOKEN}
       HA_MCP_URL: ${HA_MCP_URL}
