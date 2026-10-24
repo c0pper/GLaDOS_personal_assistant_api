@@ -289,6 +289,8 @@ given to the orchestrator and the responder, and the orchestrator rewrites follo
 Required environment variables (see `.env.example` or docker-compose.yml):
 - `GLADOS_API_KEY` - Shared secret every `/api/*` endpoint requires in the `X-API-Key` header (the Telegram bot sends it too)
 - `OPENROUTER_API_KEY` - API key for LLM calls
+- `JEV_ENABLED` / `JEV_MODEL` - optional fast tool routing through TypeSafe's Jev decision model (disabled by default;
+  evaluate with `scripts/jev_benchmark.py` before enabling; pin a version instead of the `~typesafe/jev-latest` alias)
 - `SEARXNG_URL` - SearXNG instance URL
 - `HA_MCP_URL` - Home Assistant MCP server URL (streamable HTTP; the path contains a secret, keep it in `.env`)
 - `GROCY_MCP_URL` - Grocy MCP server URL (streamable HTTP)

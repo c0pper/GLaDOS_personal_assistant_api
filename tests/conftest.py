@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -23,6 +23,8 @@ os.environ.update({
     "HOME_ASSISTANT_TOKEN": "ha-token",
     "LLM_CACHE_DB_PATH": os.path.join(TEST_DB_DIR, "llm_cache.db"),
     "CONVERSATION_DB_PATH": os.path.join(TEST_DB_DIR, "conversations.db"),
+    # Keep the optional Jev routing off unless a test enables it explicitly.
+    "JEV_ENABLED": "false",
 })
 
 import pytest
@@ -33,7 +35,7 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
 
 from src.agents import mcp_agent, vikunja_agent
-from src.services import speech_to_text, text_to_speech
+from src.services import jev_client, speech_to_text, text_to_speech
 from src.config import Config
 from src.services.conversation_store import conversations
 from src.services.llm_cache.llm_cache import cache
@@ -88,6 +90,36 @@ def fake_llm(monkeypatch) -> FakeLLM:
 
     monkeypatch.setattr(AtomicAgent, "run_async", run_async)
     return llm
+
+
+###########
+# FAKE JEV #
+###########
+class FakeJev:
+    """Replaces jev_client.decide; tests set `response` (or `error`) and inspect `calls`."""
+
+    def __init__(self):
+        self.calls: List[Dict[str, Any]] = []
+        self.response: Optional[jev_client.JevResponse] = None
+        self.error: Optional[Exception] = None
+
+    async def decide(self, state: Any, questions: Dict[str, Any]) -> jev_client.JevResponse:
+        self.calls.append({"state": state, "questions": questions})
+        if self.error is not None:
+            raise self.error
+        assert self.response is not None, "fake_jev.response not set"
+        return self.response
+
+
+@pytest.fixture
+def fake_jev(monkeypatch) -> FakeJev:
+    fake = FakeJev()
+
+    async def decide(state, questions):
+        return await fake.decide(state, questions)
+
+    monkeypatch.setattr(jev_client, "decide", decide)
+    return fake
 
 
 #############
@@ -214,9 +246,11 @@ def fake_mcp(monkeypatch) -> FakeMcpServer:
 def reset_state():
     cache.wipe()
     conversations.wipe()
+    jev_client.reset()
     provider = vikunja_agent.available_projects_provider
     provider.projects = None
     provider.fetched_at = 0.0
     yield
     cache.wipe()
     conversations.wipe()
+    jev_client.reset()

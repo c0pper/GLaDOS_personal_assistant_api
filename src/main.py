@@ -10,6 +10,7 @@ from src.api.endpoints.start import router as start_router
 from src.api.endpoints.cache import router as cache_router
 from src.api.endpoints.conversations import router as conversations_router
 from src.logger import logger
+from src.services import jev_client
 from src.services.http_clients import close_http_clients
 from src.services.llm_client import openrouter_client
 
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
     yield
     await close_http_clients()
     await openrouter_client.close()
+    await jev_client.close()
     await logger.complete()
 
 

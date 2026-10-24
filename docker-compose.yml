@@ -30,6 +30,9 @@ services:
       HOME_ASSISTANT_TTS_MEDIA_PLAYER: media_player.minisgooglehome_2
       HOME_ASSISTANT_TTS_ENTITY: tts.piper
       HOME_ASSISTANT_TTS_VOICE: glados
+      # Optional fast routing through Jev; disabled until evaluated with scripts/jev_benchmark.py.
+      JEV_ENABLED: ${JEV_ENABLED:-false}
+      JEV_MODEL: ${JEV_MODEL:-typesafe/jev-1.14}
 
     volumes:
       - ./db:/app/db

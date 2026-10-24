@@ -16,6 +16,22 @@ class Config:
     RESPONDER_AGENT_MODEL: str = "openai/gpt-4o-mini"
     GEMINI_AGENT_MODEL: str = "google/gemini-2.5-flash-lite"
 
+    # Jev (TypeSafe's structured decision model) can pick the tool faster than an LLM. It is optional:
+    # disabled by default, and any error or low-confidence answer falls back to the normal orchestrator.
+    JEV_ENABLED: bool = os.environ.get("JEV_ENABLED", "false").lower() in ("1", "true", "yes")
+    # Pin a version rather than the ~typesafe/jev-latest alias: the alias moves and invalidates tuned thresholds.
+    JEV_MODEL: str = os.environ.get("JEV_MODEL", "typesafe/jev-1.14")
+    JEV_DECISIONS_URL: str = os.environ.get(
+        "JEV_DECISIONS_URL", "https://openrouter.ai/api/alpha/decisions"
+    )
+    JEV_TIMEOUT_SECONDS: float = 1.5
+    # Below these confidence values the orchestrator LLM makes the decision instead.
+    JEV_MIN_CONFIDENCE: float = 0.7
+    # A false "No Tool" means a device command is answered as chat, so it needs a higher bar.
+    JEV_NO_TOOL_MIN_CONFIDENCE: float = 0.9
+    # With history, a higher follow-up probability means the LLM must rewrite the message anyway.
+    JEV_FOLLOW_UP_THRESHOLD: float = 0.2
+
     VIKUNJA_BASE_URL: str = os.environ["VIKUNJA_BASE_URL"]
     VIKUNJA_TOKEN: str = os.environ["VIKUNJA_TOKEN"]
     VIKUNJA_AGENT_MODEL: str = "google/gemini-2.5-flash-lite"

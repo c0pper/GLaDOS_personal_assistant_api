@@ -1,4 +1,5 @@
-from typing import Literal, Optional
+from datetime import datetime
+from typing import Any, Dict, Literal, Optional
 
 from pydantic import Field, ValidationError
 from atomic_agents import AtomicAgent, AgentConfig, BaseIOSchema
@@ -7,10 +8,22 @@ from atomic_agents.context import SystemPromptGenerator
 from src.agents.context_providers import CurrentDateProvider
 from src.config import Config
 from src.logger import logger
+from src.services import jev_client
 from src.services.llm_cache.llm_cache import cache
 from src.services.llm_client import fallback_routing, llm_client
 
 CACHE_NAMESPACE = "orchestrator"
+
+# Single source of truth for the tool descriptions: used by both the LLM prompt and Jev's choice criteria.
+TOOL_DESCRIPTIONS = {
+    "Home Assistant Tool": "Lights, appliances, presence, temperature, and other home control.",
+    "Grocy Tool": "Groceries and the kitchen: pantry/fridge stock, expiring food, the shopping list, "
+                  "recipes, the meal plan, and recurring household chores (cleaning, laundry, ...). "
+                  "Anything mentioning chores goes here.",
+    "SearXNG Tool": "Questions that can be answered with a web search.",
+    "Vikunja Tool": "To-dos, reminders, tasks and projects (but not chores).",
+    "No Tool": "A simple conversational message that does not require any tool.",
+}
 
 
 ########################
@@ -55,13 +68,7 @@ system_prompt_generator = SystemPromptGenerator(
         "You are an intent detector.",
         "Your task is to classify the user query and decide which tool, if any, should be used.",
         "Available tools:",
-        "- Home Assistant Tool: if the query is about lights, appliances, presence, temperature.",
-        "- Grocy Tool: for groceries and the kitchen: pantry/fridge stock, expiring food, the shopping list, "
-        "recipes, the meal plan, and recurring household chores (cleaning, laundry, ...): anything mentioning "
-        "chores goes here.",
-        "- SearXNG Tool: if the query can be answered with a web search.",
-        "- Vikunja Tool: for to-dos, reminders, tasks and projects (but not chores).",
-        "- No Tool: if the query is a simple conversational message that does not require any tool.",
+        *(f"- {tool_name}: {description}" for tool_name, description in TOOL_DESCRIPTIONS.items()),
         "Earlier exchanges of the conversation may be provided: use them to understand follow-up messages.",
     ],
     output_instructions=[
@@ -85,6 +92,84 @@ def build_agent() -> AtomicAgent[OrchestratorInputSchema, OrchestratorOutputSche
     )
 
 
+def build_jev_request(
+    user_input: str, conversation_history: Optional[str]
+) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    """The state and typed questions sent to Jev, matching the LLM prompt above."""
+    questions: Dict[str, Any] = {
+        "tool": {
+            "type": "choice",
+            "instructions": "Which tool should handle the user's latest message?",
+            "criteria": TOOL_DESCRIPTIONS,
+        }
+    }
+    state: Dict[str, Any] = {
+        "message": user_input,
+        "current_date": datetime.now().strftime("%Y-%m-%d"),
+    }
+    if conversation_history:
+        state["conversation_history"] = conversation_history
+        questions["needs_rewrite"] = {
+            "type": "noul",
+            "instructions": "Does the latest message depend on the earlier exchanges to be understood?",
+            "criteria": {
+                "true": "It cannot be understood without the earlier exchanges (e.g. 'turn it off', 'and tomorrow?').",
+                "false": "It is understandable on its own.",
+            },
+        }
+    return state, questions
+
+
+def _choice_answer(response: jev_client.JevResponse, question: str) -> Optional[jev_client.JevChoiceAnswer]:
+    answer = response.answers.get(question)
+    if not isinstance(answer, dict) or answer.get("type") != "choice":
+        return None
+    try:
+        return jev_client.JevChoiceAnswer.model_validate(answer)
+    except ValidationError:
+        return None
+
+
+async def _route_with_jev(
+    user_input: str, conversation_history: Optional[str]
+) -> Optional[OrchestratorOutputSchema]:
+    """
+    Ask Jev to classify the message. Returns None whenever the normal orchestrator should decide:
+    Jev unavailable, a malformed answer, low confidence, or a follow-up that needs rewriting.
+    """
+    state, questions = build_jev_request(user_input, conversation_history)
+
+    try:
+        response = await jev_client.decide(state=state, questions=questions)
+    except jev_client.JevError:
+        return None
+
+    tool = _choice_answer(response, "tool")
+    if tool is None or tool.choice not in TOOL_DESCRIPTIONS:
+        logger.warning(f"Jev returned an unusable tool answer: {response.answers.get('tool')!r}")
+        return None
+
+    threshold = Config.JEV_NO_TOOL_MIN_CONFIDENCE if tool.choice == "No Tool" else Config.JEV_MIN_CONFIDENCE
+    if tool.confidence is None or tool.confidence < threshold:
+        logger.info(f"Jev route '{tool.choice}' is below confidence {threshold} ({tool.confidence}): using the LLM")
+        return None
+
+    if conversation_history:
+        try:
+            probability = jev_client.JevNoulAnswer.model_validate(
+                response.answers.get("needs_rewrite")
+            ).noul
+        except ValidationError:
+            logger.warning("Jev did not answer needs_rewrite: using the LLM")
+            return None
+        if probability > Config.JEV_FOLLOW_UP_THRESHOLD:
+            logger.info(f"Jev thinks the message is a follow-up ({probability:.2f}): using the LLM to rewrite it")
+            return None
+
+    logger.info(f"Jev route: {tool.choice} (confidence {tool.confidence})")
+    return OrchestratorOutputSchema(tool_name=tool.choice, standalone_query=None)
+
+
 async def route_query(user_input: str, conversation_history: Optional[str] = None) -> OrchestratorOutputSchema:
     """
     Classify the user message: returns the tool to use, and the message made self-contained if it is a follow-up.
@@ -106,9 +191,14 @@ async def route_query(user_input: str, conversation_history: Optional[str] = Non
 
     logger.info("Cache miss")
 
-    output = await build_agent().run_async(
-        OrchestratorInputSchema(chat_message=user_input, conversation_history=conversation_history)
-    )
+    output = None
+    if Config.JEV_ENABLED:
+        output = await _route_with_jev(user_input, conversation_history)
+
+    if output is None:
+        output = await build_agent().run_async(
+            OrchestratorInputSchema(chat_message=user_input, conversation_history=conversation_history)
+        )
 
     cache.set(CACHE_NAMESPACE, cache_key, output.model_dump(mode="json"))
 
